@@ -124,7 +124,7 @@ const Sidebar = ({ onDragStart, galleryImages = [], onDeleteImage, onClearGaller
           <div>
             <h1 className="font-semibold text-lg text-white tracking-tight" 
               style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              WebDiffusion
+              CozyUI
             </h1>
             <p className="text-xs text-slate-500">AI Studio</p>
           </div>

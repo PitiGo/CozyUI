@@ -37,7 +37,7 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
   const handleDownload = (image) => {
     const link = document.createElement('a');
     link.href = image.url;
-    link.download = `webdiffusion-${image.id}.png`;
+    link.download = `cozyui-${image.id}.png`;
     link.click();
   };
 

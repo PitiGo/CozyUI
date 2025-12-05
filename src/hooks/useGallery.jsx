@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 
-const STORAGE_KEY = 'webdiffusion-gallery';
+const STORAGE_KEY = 'cozyui-gallery';
 const MAX_IMAGES = 50;
 
 export function useGallery() {

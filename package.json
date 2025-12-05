@@ -1,12 +1,12 @@
 {
-  "name": "web-comfyui",
+  "name": "cozyui",
   "private": true,
   "version": "0.1.0",
-  "description": "Web-Native Generative AI Studio - ComfyUI that runs 100% in the browser using WebGPU",
+  "description": "CozyUI - A cozy, web-native alternative to ComfyUI. Generative AI Studio that runs 100% in the browser using WebGPU",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/Web-ComfyUI.git"
+    "url": "https://github.com/YOUR_USERNAME/CozyUI.git"
   },
   "keywords": [
     "ai",

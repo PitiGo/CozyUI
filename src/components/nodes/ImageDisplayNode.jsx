@@ -11,7 +11,7 @@ const ImageDisplayNode = ({ id, data, isConnectable }) => {
     if (!imageUrl) return;
     const link = document.createElement('a');
     link.href = imageUrl;
-    link.download = `webdiffusion-${Date.now()}.png`;
+    link.download = `cozyui-${Date.now()}.png`;
     link.click();
   };
 

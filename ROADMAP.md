@@ -1,4 +1,4 @@
-# 🗺️ WebDiffusion Studio - Roadmap
+# 🗺️ CozyUI - Roadmap
 
 > Documento de seguimiento del desarrollo y mejoras futuras
 
