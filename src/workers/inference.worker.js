@@ -104,9 +104,11 @@ async function loadModel(payload) {
           payload: { modelId, progress: 20, message: 'Loading text-to-image pipeline (this may take a while)...' }
         });
 
-        // Use a small/quantized model for text-to-image
+        // Use a quantized model for text-to-image
         // Note: This downloads ~2GB, so it's optional
-        text2imgPipeline = await pipeline('text-to-image', 'onnx-community/stable-diffusion-3.5-medium', {
+        // Try common model names - will fallback to API if model doesn't exist
+        const modelName = 'Xenova/stable-diffusion-v1-5-quantized';
+        text2imgPipeline = await pipeline('text-to-image', modelName, {
           device: 'webgpu',
           dtype: 'fp16',
           progress_callback: (progress) => {
