@@ -21,6 +21,7 @@ const InferenceNode = ({ id, data, isConnectable }) => {
     // Find the prompt node
     const promptNode = nodes.find(n => n.type === 'promptNode');
     const modelNode = nodes.find(n => n.type === 'modelLoaderNode');
+    const img2imgNode = nodes.find(n => n.type === 'img2imgNode');
     
     if (!promptNode) {
       alert('Please add a Text Prompt node and connect it');
@@ -44,6 +45,14 @@ const InferenceNode = ({ id, data, isConnectable }) => {
       return;
     }
 
+    // Check if image-to-image is being used
+    const sourceImage = img2imgNode?.data?.imageUrl || null;
+    const strength = img2imgNode?.data?.strength ?? 0.75;
+    
+    if (sourceImage) {
+      console.log('🖼️ Image-to-Image mode detected');
+    }
+
     // First load the model if not loaded
     if (state.model.status !== 'loaded' || state.model.id !== selectedModel.id) {
       console.log('Loading model:', selectedModel.repo);
@@ -60,6 +69,8 @@ const InferenceNode = ({ id, data, isConnectable }) => {
       width: data.width || 512,
       height: data.height || 512,
       seed: data.seed || -1,
+      sourceImage: sourceImage, // Pass image for img2img
+      strength: strength, // Pass strength for img2img
     });
   }, [nodes, data, state.model, actions]);
 

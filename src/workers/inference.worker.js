@@ -183,11 +183,30 @@ async function generate(payload) {
     payload: { prompt }
   });
 
-  // NOTE: text-to-image pipeline is NOT available in transformers.js v3.8.1
-  // Always use API for text-to-image generation
-  // Local WebGPU is only available for image-to-image transformations
-  console.log('🌐 Using Pollinations.ai API for text-to-image generation...');
-  await generateViaAPI(payload);
+  // Check if this is image-to-image mode
+  if (sourceImage) {
+    console.log('🖼️ Image-to-Image mode detected');
+    
+    // Try local processing first if pipeline is available
+    if (img2imgPipeline && webGPUAvailable) {
+      try {
+        console.log('🚀 Attempting local WebGPU image-to-image processing...');
+        await processImageLocally(sourceImage, { prompt, strength });
+        return;
+      } catch (localError) {
+        console.warn('⚠️ Local image processing failed, falling back to API:', localError.message);
+      }
+    }
+    
+    // Fallback to API for image-to-image
+    console.log('🌐 Using Pollinations.ai API for image-to-image generation...');
+    await generateViaAPI(payload);
+  } else {
+    // Text-to-image mode - always use API
+    // NOTE: text-to-image pipeline is NOT available in transformers.js v3.8.1
+    console.log('🌐 Using Pollinations.ai API for text-to-image generation...');
+    await generateViaAPI(payload);
+  }
 }
 
 async function generateViaAPI(payload) {
@@ -298,7 +317,7 @@ async function generateViaAPI(payload) {
   }
 }
 
-// Future: Local image-to-image processing
+// Local image-to-image processing (super-resolution/enhancement)
 async function processImageLocally(imageData, options) {
   if (!img2imgPipeline) {
     throw new Error('Image-to-image pipeline not loaded');
@@ -307,14 +326,60 @@ async function processImageLocally(imageData, options) {
   try {
     console.log('🖼️ Processing image locally with WebGPU...');
     
-    const result = await img2imgPipeline(imageData);
-    
-    // Convert result to blob URL
-    if (result instanceof Blob) {
-      return URL.createObjectURL(result);
+    // Convert base64 or URL to ImageData/Blob for the pipeline
+    let imageBlob;
+    if (imageData.startsWith('data:')) {
+      // Base64 data URL
+      const response = await fetch(imageData);
+      imageBlob = await response.blob();
+    } else if (imageData.startsWith('blob:')) {
+      // Blob URL
+      const response = await fetch(imageData);
+      imageBlob = await response.blob();
+    } else {
+      throw new Error('Unsupported image format');
     }
+
+    self.postMessage({
+      type: 'GENERATION_PROGRESS',
+      payload: { step: 0, totalSteps: 10, progress: 20, mode: 'local' }
+    });
+
+    // Process with the pipeline (this is for super-resolution/enhancement)
+    const result = await img2imgPipeline(imageBlob);
     
-    return result;
+    self.postMessage({
+      type: 'GENERATION_PROGRESS',
+      payload: { step: 10, totalSteps: 10, progress: 100, mode: 'local' }
+    });
+
+    // Convert result to blob URL
+    let imageUrl;
+    if (result instanceof Blob) {
+      imageUrl = URL.createObjectURL(result);
+    } else if (result.images && result.images[0]) {
+      const image = result.images[0];
+      if (image instanceof Blob) {
+        imageUrl = URL.createObjectURL(image);
+      } else {
+        // Convert to blob if needed
+        imageUrl = URL.createObjectURL(image);
+      }
+    } else {
+      throw new Error('Unexpected result format from pipeline');
+    }
+
+    self.postMessage({
+      type: 'GENERATION_COMPLETE',
+      payload: { 
+        imageUrl, 
+        mode: 'local',
+        info: '✨ Enhanced locally with WebGPU!'
+      }
+    });
+
+    console.log('✅ Local image processing complete!');
+    
   } catch (error) {
     console.error('Local image processing error:', error);
     throw error;
