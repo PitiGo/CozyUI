@@ -1,8 +1,8 @@
 # 🏠 CozyUI
 
-> **ComfyUI es potente, pero CozyUI es... acogedor** ✨
+> **ComfyUI is powerful, but CozyUI is... cozy** ✨
 
-Un "ComfyUI" que se ejecuta 100% en el navegador - Generación de imágenes con IA sin instalaciones, sin configuración, sin complicaciones.
+A "ComfyUI" that runs 100% in the browser - AI image generation with no installations, no configuration, no hassle.
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -12,94 +12,94 @@ Un "ComfyUI" que se ejecuta 100% en el navegador - Generación de imágenes con 
   <img src="docs/screenshot.png" alt="CozyUI Screenshot" width="800">
 </p>
 
-## ✨ ¿Por qué CozyUI?
+## ✨ Why CozyUI?
 
-**ComfyUI** es increíblemente potente, pero requiere instalación, configuración y una curva de aprendizaje. **CozyUI** mantiene la misma filosofía de nodos visuales, pero:
+**ComfyUI** is incredibly powerful, but it requires installation, configuration, and a learning curve. **CozyUI** maintains the same visual node philosophy, but:
 
-- 🏠 **Acogedor** - Sin instalaciones, solo abre y usa
-- 🌐 **Web-Native** - Funciona en cualquier navegador moderno
-- ⚡ **Ligero** - No necesitas GPU local (por ahora)
-- 🎨 **Familiar** - Si conoces ComfyUI, ya sabes usar CozyUI
+- 🏠 **Cozy** - No installations, just open and use
+- 🌐 **Web-Native** - Works in any modern browser
+- ⚡ **Lightweight** - No local GPU needed (for now)
+- 🎨 **Familiar** - If you know ComfyUI, you already know CozyUI
 
 ## 🚀 Quick Start
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/tu-usuario/CozyUI.git
+# Clone the repository
+git clone https://github.com/PitiGo/CozyUI.git
 cd CozyUI
 
-# Instalar dependencias
+# Install dependencies
 npm install
 
-# Iniciar servidor de desarrollo
+# Start development server
 npm run dev
 
-# Abrir http://localhost:5173
+# Open http://localhost:5173
 ```
 
-¡Eso es todo! No necesitas instalar Python, CUDA, o nada más.
+That's it! No need to install Python, CUDA, or anything else.
 
-## ✨ Características
+## ✨ Features
 
-- 🖼️ **Interfaz Visual de Nodos** - Arrastra, conecta y configura como en ComfyUI
-- 🚀 **Sin Instalación** - Solo abre la URL y empieza a crear
-- 🔒 **Privacidad Total** - Tu data nunca sale de tu navegador*
-- ⚡ **WebGPU Ready** - Preparado para aceleración GPU local
-- 📱 **Responsive** - Funciona en desktop y tablets
-- 🎨 **Image to Image** - Transforma imágenes existentes
-- 🌱 **Seed Control** - Control total sobre la aleatoriedad
-- 📦 **Workflow Presets** - Plantillas predefinidas para empezar rápido
-- 💾 **Export/Import** - Guarda y comparte tus workflows
+- 🖼️ **Visual Node Interface** - Drag, connect, and configure just like ComfyUI
+- 🚀 **Zero Installation** - Just open the URL and start creating
+- 🔒 **Complete Privacy** - Your data never leaves your browser*
+- ⚡ **WebGPU Ready** - Prepared for local GPU acceleration
+- 📱 **Responsive** - Works on desktop and tablets
+- 🎨 **Image to Image** - Transform existing images
+- 🌱 **Seed Control** - Full control over randomness
+- 📦 **Workflow Presets** - Pre-built templates to get started quickly
+- 💾 **Export/Import** - Save and share your workflows
 
-> *Actualmente usa Pollinations.ai para generación. WebGPU local coming soon.
+> *Currently uses Pollinations.ai for generation. Local WebGPU coming soon.
 
-## 🎯 Uso
+## 🎯 Usage
 
-1. **Configura el Prompt** - Escribe lo que quieres generar en el nodo "Text Prompt"
-2. **Selecciona Modelo** - Elige entre SD 1.5, SD Turbo o SDXL en "Model Loader"
-3. **Ajusta Parámetros** - Steps, CFG Scale, dimensiones en "Run Inference"
-4. **Genera** - Click en el botón naranja "Generate"
-5. **Descarga** - Tu imagen aparecerá en "Image Output" lista para descargar
+1. **Set up the Prompt** - Write what you want to generate in the "Text Prompt" node
+2. **Select Model** - Choose between SD 1.5, SD Turbo, or SDXL in "Model Loader"
+3. **Adjust Parameters** - Steps, CFG Scale, dimensions in "Run Inference"
+4. **Generate** - Click the orange "Generate" button
+5. **Download** - Your image will appear in "Image Output" ready to download
 
 ### 🖼️ Image to Image
 
-1. Arrastra una imagen desde la galería al nodo "Image to Image"
-2. Ajusta el "Denoising Strength" (0 = sutil, 1 = creativo)
-3. Conecta el nodo al workflow y genera
+1. Drag an image from the gallery to the "Image to Image" node
+2. Adjust the "Denoising Strength" (0 = subtle, 1 = creative)
+3. Connect the node to the workflow and generate
 
-## 🧩 Nodos Disponibles
+## 🧩 Available Nodes
 
-### Básicos
-| Nodo | Descripción |
+### Basic
+| Node | Description |
 |------|-------------|
-| 📝 **Text Prompt** | Entrada de prompt positivo y negativo |
-| 📦 **Model Loader** | Selector de modelo de IA |
-| ⚙️ **Run Inference** | Configuración y ejecución de generación |
-| 🖼️ **Image Output** | Visualización y descarga de resultado |
+| 📝 **Text Prompt** | Positive and negative prompt input |
+| 📦 **Model Loader** | AI model selector |
+| ⚙️ **Run Inference** | Generation configuration and execution |
+| 🖼️ **Image Output** | Result visualization and download |
 
-### Avanzados
-| Nodo | Descripción |
+### Advanced
+| Node | Description |
 |------|-------------|
-| 🖼️ **Image to Image** | Transforma imágenes existentes con drag & drop |
-| 🎲 **Seed Generator** | Control de semillas para resultados reproducibles |
-| 📐 **Image Resize** | Redimensiona imágenes con presets o valores personalizados |
+| 🖼️ **Image to Image** | Transform existing images with drag & drop |
+| 🎲 **Seed Generator** | Seed control for reproducible results |
+| 📐 **Image Resize** | Resize images with presets or custom values |
 
-## 🛠️ Stack Tecnológico
+## 🛠️ Tech Stack
 
-- **React 19** + Vite 5 - Framework y build tool
-- **@xyflow/react** (React Flow) - Motor de nodos visuales
-- **Tailwind CSS** - Estilos modernos
-- **Lucide React** - Iconos elegantes
-- **Web Workers** - Procesamiento no-bloqueante
-- **Zustand** - Estado global ligero
-- **Pollinations.ai** - API de generación (temporal)
+- **React 19** + Vite 5 - Framework and build tool
+- **@xyflow/react** (React Flow) - Visual node engine
+- **Tailwind CSS** - Modern styling
+- **Lucide React** - Elegant icons
+- **Web Workers** - Non-blocking processing
+- **Zustand** - Lightweight global state
+- **Pollinations.ai** - Generation API (temporary)
 
-## 📁 Estructura del Proyecto
+## 📁 Project Structure
 
 ```
 src/
 ├── components/
-│   ├── nodes/           # Nodos personalizados
+│   ├── nodes/           # Custom nodes
 │   │   ├── PromptNode.jsx
 │   │   ├── ModelLoaderNode.jsx
 │   │   ├── InferenceNode.jsx
@@ -107,87 +107,87 @@ src/
 │   │   ├── Img2ImgNode.jsx
 │   │   ├── SeedNode.jsx
 │   │   └── ImageResizeNode.jsx
-│   ├── Sidebar.jsx      # Panel lateral
-│   ├── Toolbar.jsx      # Barra superior
-│   ├── StatusBar.jsx    # Barra de estado
-│   └── Gallery.jsx      # Galería de imágenes
+│   ├── Sidebar.jsx      # Side panel
+│   ├── Toolbar.jsx      # Top bar
+│   ├── StatusBar.jsx    # Status bar
+│   └── Gallery.jsx      # Image gallery
 ├── workers/
-│   └── inference.worker.js  # Web Worker para IA
+│   └── inference.worker.js  # AI Web Worker
 ├── store/
-│   └── useStore.jsx     # Estado global (Zustand)
+│   └── useStore.jsx     # Global state (Zustand)
 ├── hooks/
-│   ├── useWebGPU.jsx    # Detección WebGPU
-│   ├── useGallery.jsx   # Gestión de galería
-│   ├── useToast.jsx     # Notificaciones
+│   ├── useWebGPU.jsx    # WebGPU detection
+│   ├── useGallery.jsx   # Gallery management
+│   ├── useToast.jsx     # Notifications
 │   └── useWorkflow.jsx  # Export/Import workflows
-├── App.jsx              # Componente principal
+├── App.jsx              # Main component
 └── main.jsx             # Entry point
 ```
 
 ## 🗺️ Roadmap
 
-Ver [ROADMAP.md](./ROADMAP.md) para el plan completo de desarrollo.
+See [ROADMAP.md](./ROADMAP.md) for the complete development plan.
 
-### ✅ Completado (MVP + Fase 3)
-- [x] Interfaz de nodos visuales
+### ✅ Completed (MVP + Phase 3)
+- [x] Visual node interface
 - [x] Text-to-image generation
-- [x] Image to Image con drag & drop
+- [x] Image to Image with drag & drop
 - [x] Seed generator
 - [x] Image resize
 - [x] Workflow export/import
-- [x] Presets de workflows
-- [x] Galería de imágenes
+- [x] Workflow presets
+- [x] Image gallery
 
-### 🚧 Próximas Features (Fase 2)
-- [ ] Caché de modelos con OPFS
-- [ ] Más modelos disponibles
-- [ ] Mejoras de UX y animaciones
+### 🚧 Upcoming Features (Phase 2)
+- [ ] Model caching with OPFS
+- [ ] More available models
+- [ ] UX improvements and animations
 
-### 🔮 Futuro (Fase 3-4)
-- [ ] Generación 100% local con WebGPU
-- [ ] Soporte LoRA
-- [ ] PWA instalable
+### 🔮 Future (Phase 3-4)
+- [ ] 100% local generation with WebGPU
+- [ ] LoRA support
+- [ ] Installable PWA
 - [ ] ControlNet
 - [ ] Inpainting
 - [ ] Upscaling
 
-## 🌐 Compatibilidad
+## 🌐 Browser Compatibility
 
-| Navegador | Soporte | WebGPU |
-|-----------|---------|--------|
+| Browser | Support | WebGPU |
+|---------|---------|--------|
 | Chrome 113+ | ✅ | ✅ |
 | Edge 113+ | ✅ | ✅ |
 | Firefox 118+ | ✅ | ⚠️ Experimental |
-| Safari 17+ | ✅ | ⚠️ Parcial |
+| Safari 17+ | ✅ | ⚠️ Partial |
 
-## 🤝 Contribuir
+## 🤝 Contributing
 
-¡Las contribuciones son bienvenidas! 
+Contributions are welcome! 
 
-1. Fork el proyecto
-2. Crea tu branch (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add: AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+1. Fork the project
+2. Create your branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add: AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## 📄 Licencia
+## 📄 License
 
-Distribuido bajo la licencia MIT. Ver `LICENSE` para más información.
+Distributed under the MIT License. See `LICENSE` for more information.
 
-## 🙏 Agradecimientos
+## 🙏 Acknowledgments
 
-- [ComfyUI](https://github.com/comfyanonymous/ComfyUI) - La inspiración original
-- [React Flow](https://reactflow.dev/) - Motor de nodos
-- [Hugging Face](https://huggingface.co/) - Modelos de IA
-- [Pollinations.ai](https://pollinations.ai/) - API de generación gratuita
-- [Tailwind CSS](https://tailwindcss.com/) - Framework CSS
+- [ComfyUI](https://github.com/comfyanonymous/ComfyUI) - The original inspiration
+- [React Flow](https://reactflow.dev/) - Node engine
+- [Hugging Face](https://huggingface.co/) - AI models
+- [Pollinations.ai](https://pollinations.ai/) - Free generation API
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
 
 ---
 
 <p align="center">
-  Hecho con ❤️ para hacer la IA generativa más accesible
+  Made with ❤️ to make generative AI more accessible
 </p>
 
 <p align="center">
-  <strong>ComfyUI es potente. CozyUI es acogedor. ✨</strong>
+  <strong>ComfyUI is powerful. CozyUI is cozy. ✨</strong>
 </p>
