@@ -21,7 +21,7 @@ npm install @huggingface/transformers@latest
 
 ### Important: Transformers.js Updates
 
-The `text-to-image` pipeline **IS NOW AVAILABLE** in transformers.js v3.8.1! ✅
+The `text-to-image` pipeline is **NOT YET AVAILABLE** in transformers.js v3.8.1. ❌
 
 Check current version:
 ```bash
@@ -29,23 +29,29 @@ npm list @huggingface/transformers
 ```
 
 **Current Implementation** in `src/workers/inference.worker.js`:
-- Attempts local WebGPU generation first
-- Falls back to Pollinations.ai API if local fails
-- Uses model: `onnx-community/stable-diffusion-3.5-medium` (or similar)
+- Always uses Pollinations.ai API for text-to-image
+- Local WebGPU is only used for `image-to-image` transformations
+- When `text-to-image` pipeline becomes available, update the code to use it
 
-**To test if text-to-image is working**:
+**To test if text-to-image becomes available**:
 ```bash
 node -e "
 const { pipeline } = require('@huggingface/transformers');
 pipeline('text-to-image', 'test').catch(e => {
-  if (e.message.includes('Unsupported task') || e.message.includes('is not a valid task')) {
-    console.log('❌ text-to-image NOT available');
+  if (e.message.includes('Unsupported pipeline') || e.message.includes('is not a valid task')) {
+    console.log('❌ text-to-image NOT available yet');
   } else {
-    console.log('✅ text-to-image IS available!');
+    console.log('✅ text-to-image IS NOW AVAILABLE!');
+    console.log('   Update inference.worker.js to enable local generation');
   }
 });
 "
 ```
+
+**When it becomes available**, update `src/workers/inference.worker.js`:
+1. Add `text2imgPipeline` initialization in `loadModel()`
+2. Add `generateLocally()` function
+3. Update `generate()` to try local first, then API fallback
 
 ---
 

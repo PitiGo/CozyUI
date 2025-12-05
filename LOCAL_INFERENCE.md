@@ -8,73 +8,71 @@ This document explains the current state of local AI inference in CozyUI.
 
 | Feature | Status | Method |
 |---------|--------|--------|
-| **Text-to-Image** | ✅ Local + API Fallback | Transformers.js v3 + Pollinations.ai |
+| **Text-to-Image** | ⚠️ API Only | Pollinations.ai (pipeline not available in transformers.js v3.8.1) |
 | **Image-to-Image** | ✅ Local Ready | Transformers.js v3 |
 | **Image Upscaling** | ✅ Local Ready | Transformers.js v3 |
 | **WebGPU Detection** | ✅ Working | Browser API |
 
 ---
 
-## 🎉 Text-to-Image is NOW Available Locally!
+## ❌ Text-to-Image is NOT Available Locally (Yet)
 
-As of December 2024, the `text-to-image` pipeline **IS available** in `@huggingface/transformers` v3.8.1.
+**Reality Check**: As of December 2024, the `text-to-image` pipeline is **NOT available** in `@huggingface/transformers` v3.8.1.
 
-### How It Works in CozyUI
+### Error Message
 
-```javascript
-// CozyUI now attempts local generation first:
-if (localTextToImageAvailable && text2imgPipeline) {
-  await generateLocally(payload);  // 🚀 WebGPU!
-} else {
-  await generateViaAPI(payload);   // 🌐 Fallback
-}
+When attempting to use `text-to-image` pipeline:
+```
+Unsupported pipeline: text-to-image. Must be one of [
+  text-classification,
+  token-classification,
+  question-answering,
+  fill-mask,
+  summarization,
+  translation,
+  text2text-generation,
+  text-generation,
+  zero-shot-classification,
+  audio-classification,
+  zero-shot-audio-classification,
+  automatic-speech-recognition,
+  text-to-audio,
+  image-to-text,
+  image-classification,
+  image-segmentation,
+  background-removal,
+  zero-shot-image-classification,
+  object-detection,
+  zero-shot-object-detection,
+  document-question-answering,
+  image-to-image,        ← This one works!
+  depth-estimation,
+  feature-extraction,
+  image-feature-extraction
+]
 ```
 
-### Supported Models
+**Note**: `image-to-image` **IS** in the list, but `text-to-image` is **NOT**.
+
+### How CozyUI Handles This
 
 ```javascript
-// Current model used for local generation:
-const text2imgPipeline = await pipeline(
-  'text-to-image', 
-  'onnx-community/stable-diffusion-3.5-medium',
-  {
-    device: 'webgpu',
-    dtype: 'fp16'
-  }
-);
+// CozyUI always uses API for text-to-image:
+console.log('🌐 Using Pollinations.ai API for text-to-image generation...');
+await generateViaAPI(payload);
 ```
 
-### ⚠️ Important Considerations
-
-1. **First Download is Large**: ~2GB+ of model files
-2. **Shader Compilation**: First run may freeze browser briefly
-3. **Hardware Requirements**: Needs a decent GPU (M1/M2/M3 Mac, NVIDIA RTX, etc.)
-4. **Browser Support**: Chrome 113+, Edge 113+
+The fallback to Pollinations.ai API is **automatic and seamless** - users don't notice the difference.
 
 ---
 
 ## ✅ What DOES Work Locally
 
-### Text-to-Image (NEW!)
+### Image-to-Image (Super Resolution)
 
 ```javascript
 import { pipeline } from '@huggingface/transformers';
 
-const generator = await pipeline('text-to-image', 'onnx-community/stable-diffusion-3.5-medium', {
-  device: 'webgpu',
-  dtype: 'fp16'
-});
-
-const result = await generator('A cat astronaut on Mars', {
-  num_inference_steps: 20,
-  guidance_scale: 7.5
-});
-// result.images[0] is your generated image!
-```
-
-### Image-to-Image (Super Resolution)
-
-```javascript
 const upscaler = await pipeline('image-to-image', 'Xenova/swin2SR-classical-sr-x2-64', {
   device: 'webgpu'
 });
@@ -109,9 +107,8 @@ const remover = await pipeline('background-removal', 'briaai/RMBG-1.4', {
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  Text-to-Image Generation:                                  │
-│  ├── Primary: Local WebGPU (when available)                │
-│  ├── Model: onnx-community/stable-diffusion-3.5-medium     │
-│  ├── Fallback: Pollinations.ai API                         │
+│  ├── Mode: API Only (Pollinations.ai)                      │
+│  ├── Reason: Pipeline not available in transformers.js     │
 │  └── Behavior: Automatic, seamless to user                 │
 │                                                             │
 │  Image-to-Image / Upscaling:                               │
@@ -121,7 +118,7 @@ const remover = await pipeline('background-removal', 'briaai/RMBG-1.4', {
 │                                                             │
 │  WebGPU Status:                                            │
 │  ├── Detection: ✅ Working                                  │
-│  └── Used for: Text-to-Image, Image processing             │
+│  └── Used for: Image processing (not text-to-image yet)    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -134,33 +131,51 @@ const remover = await pipeline('background-removal', 'briaai/RMBG-1.4', {
 - [x] Detect WebGPU availability
 - [x] Implement API fallback (Pollinations.ai)
 - [x] Test `image-to-image` pipeline locally
-- [x] Implement local `text-to-image` pipeline
+- [x] Verify `text-to-image` is NOT available (confirmed)
+- [ ] Wait for transformers.js to add `text-to-image` pipeline
 - [ ] Add local upscaling to Image Resize node
 - [ ] Add model management UI (download/delete)
 - [ ] Implement OPFS caching for large models
 
 ---
 
-## 🔧 Troubleshooting
+## 🔮 Future: When Text-to-Image Becomes Available
 
-### Local Generation Not Working?
+The code is structured to easily enable local generation when the pipeline becomes available:
 
-1. **Check Browser Console**: Look for WebGPU or shader compilation errors
-2. **Verify Browser Version**: Chrome 113+ or Edge 113+
-3. **Check GPU Memory**: Model requires significant VRAM
-4. **Try API Mode**: If local fails, API fallback should work
+```javascript
+// In inference.worker.js, this will change from:
+await generateViaAPI(payload);
 
-### Model Download Stuck?
+// To:
+if (textToImagePipeline) {
+  await generateLocally(payload);
+} else {
+  await generateViaAPI(payload);
+}
+```
 
-- Large models (~2GB) may take several minutes
-- Progress is shown in the model loader
-- Models are cached in browser storage after first download
+The infrastructure (OPFS storage, WebGPU detection, progress callbacks) is ready.
 
-### Generation is Slow?
+---
 
-- First generation compiles shaders (takes longer)
-- Subsequent generations are faster
-- Reduce image size or steps for faster results
+## 🔍 How to Check if text-to-image Becomes Available
+
+Run this test periodically:
+
+```bash
+node -e "
+const { pipeline } = require('@huggingface/transformers');
+pipeline('text-to-image', 'test').catch(e => {
+  if (e.message.includes('Unsupported pipeline') || e.message.includes('is not a valid task')) {
+    console.log('❌ text-to-image NOT available yet');
+  } else {
+    console.log('✅ text-to-image IS available!');
+    console.log('   Update inference.worker.js to enable local generation');
+  }
+});
+"
+```
 
 ---
 
@@ -169,7 +184,7 @@ const remover = await pipeline('background-removal', 'briaai/RMBG-1.4', {
 ### Monitor Transformers.js Progress
 - **Releases**: https://github.com/huggingface/transformers.js/releases
 - **Issues**: https://github.com/huggingface/transformers.js/issues
-- **Models**: https://huggingface.co/models?library=transformers.js
+- **Search for**: "text-to-image" or "stable-diffusion" pipeline support
 
 ### WebGPU Documentation
 - **Status**: https://webgpureport.org/
@@ -180,4 +195,4 @@ const remover = await pipeline('background-removal', 'briaai/RMBG-1.4', {
 
 *Last Updated: December 2024*
 *Transformers.js Version: 3.8.1*
-*Text-to-Image: ✅ Available*
+*Text-to-Image: ❌ NOT Available (API fallback works)*
