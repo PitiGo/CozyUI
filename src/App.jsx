@@ -54,8 +54,8 @@ const initialNodes = [
     type: 'inferenceNode',
     position: { x: 500, y: 250 },
     data: { 
-      steps: 4,
-      guidanceScale: 1,
+      steps: 20,
+      guidanceScale: 7.5,
       seed: -1,
       width: 512,
       height: 512,
@@ -313,8 +313,8 @@ function Flow() {
         };
       case 'inferenceNode':
         return { 
-          steps: 4,
-          guidanceScale: 1,
+          steps: 20,
+          guidanceScale: 7.5,
           seed: -1,
           width: 512,
           height: 512,
