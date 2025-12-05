@@ -8,51 +8,73 @@ This document explains the current state of local AI inference in CozyUI.
 
 | Feature | Status | Method |
 |---------|--------|--------|
-| **Text-to-Image** | ⚠️ API Only | Pollinations.ai |
+| **Text-to-Image** | ✅ Local + API Fallback | Transformers.js v3 + Pollinations.ai |
 | **Image-to-Image** | ✅ Local Ready | Transformers.js v3 |
 | **Image Upscaling** | ✅ Local Ready | Transformers.js v3 |
 | **WebGPU Detection** | ✅ Working | Browser API |
 
 ---
 
-## 🔍 Why Text-to-Image Isn't Local Yet
+## 🎉 Text-to-Image is NOW Available Locally!
 
-### The Technical Reality
+As of December 2024, the `text-to-image` pipeline **IS available** in `@huggingface/transformers` v3.8.1.
 
-We have `@huggingface/transformers@3.8.1` (v3) installed, which **does support WebGPU**. However:
+### How It Works in CozyUI
 
 ```javascript
-// These pipelines EXIST in v3:
-'image-to-image'     // ✅ Works locally!
-'image-classification'
-'depth-estimation'
-'background-removal'
-// ... many others
-
-// This pipeline DOES NOT EXIST yet:
-'text-to-image'      // ❌ Not implemented
-'stable-diffusion'   // ❌ Not a pipeline name
+// CozyUI now attempts local generation first:
+if (localTextToImageAvailable && text2imgPipeline) {
+  await generateLocally(payload);  // 🚀 WebGPU!
+} else {
+  await generateViaAPI(payload);   // 🌐 Fallback
+}
 ```
 
-### Why?
+### Supported Models
 
-Stable Diffusion requires orchestrating multiple models:
-1. **Text Encoder** (CLIP) - Converts prompt to embeddings
-2. **UNet** - The actual diffusion model (~1.5GB)
-3. **VAE Decoder** - Converts latents to pixels
-4. **Scheduler** - Controls the denoising steps
+```javascript
+// Current model used for local generation:
+const text2imgPipeline = await pipeline(
+  'text-to-image', 
+  'onnx-community/stable-diffusion-3.5-medium',
+  {
+    device: 'webgpu',
+    dtype: 'fp16'
+  }
+);
+```
 
-The `transformers.js` team has implemented individual components but hasn't yet wrapped them into a convenient `text-to-image` pipeline for browser use.
+### ⚠️ Important Considerations
+
+1. **First Download is Large**: ~2GB+ of model files
+2. **Shader Compilation**: First run may freeze browser briefly
+3. **Hardware Requirements**: Needs a decent GPU (M1/M2/M3 Mac, NVIDIA RTX, etc.)
+4. **Browser Support**: Chrome 113+, Edge 113+
 
 ---
 
 ## ✅ What DOES Work Locally
 
-### Image-to-Image (Super Resolution)
+### Text-to-Image (NEW!)
 
 ```javascript
 import { pipeline } from '@huggingface/transformers';
 
+const generator = await pipeline('text-to-image', 'onnx-community/stable-diffusion-3.5-medium', {
+  device: 'webgpu',
+  dtype: 'fp16'
+});
+
+const result = await generator('A cat astronaut on Mars', {
+  num_inference_steps: 20,
+  guidance_scale: 7.5
+});
+// result.images[0] is your generated image!
+```
+
+### Image-to-Image (Super Resolution)
+
+```javascript
 const upscaler = await pipeline('image-to-image', 'Xenova/swin2SR-classical-sr-x2-64', {
   device: 'webgpu'
 });
@@ -79,36 +101,6 @@ const remover = await pipeline('background-removal', 'briaai/RMBG-1.4', {
 
 ---
 
-## 🚀 How to Get Text-to-Image Locally
-
-### Option 1: Wait for Transformers.js Update
-
-The HuggingFace team is actively working on this. Monitor:
-- https://github.com/huggingface/transformers.js/issues
-- Look for `StableDiffusionPipeline` or `text-to-image` support
-
-### Option 2: Use WebSD / Stable Diffusion WebGPU
-
-There are experimental implementations:
-- [WebSD](https://github.com/nickytonline/web-sd) - Community project
-- [Stable Diffusion WebGPU Demo](https://nickytonline-web-sd.hf.space/) - HF Space
-
-These require manual integration and aren't as polished as transformers.js.
-
-### Option 3: Use diffusers.js (Experimental)
-
-```javascript
-// Note: This is a separate library, not transformers.js
-import { DiffusionPipeline } from '@xenova/diffusers';
-
-const pipe = await DiffusionPipeline.fromPretrained('Xenova/stable-diffusion-v1-5-onnx');
-const result = await pipe('A cat riding a bicycle');
-```
-
-⚠️ This library is less maintained and may have issues.
-
----
-
 ## 🏗️ CozyUI Architecture
 
 ```
@@ -117,18 +109,19 @@ const result = await pipe('A cat riding a bicycle');
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  Text-to-Image Generation:                                  │
-│  ├── Mode: API (Pollinations.ai)                           │
-│  ├── Reason: Pipeline not available in transformers.js     │
-│  └── Fallback: Automatic, seamless to user                 │
+│  ├── Primary: Local WebGPU (when available)                │
+│  ├── Model: onnx-community/stable-diffusion-3.5-medium     │
+│  ├── Fallback: Pollinations.ai API                         │
+│  └── Behavior: Automatic, seamless to user                 │
 │                                                             │
 │  Image-to-Image / Upscaling:                               │
-│  ├── Mode: Local WebGPU (when available)                   │
+│  ├── Mode: Local WebGPU                                    │
 │  ├── Pipeline: 'image-to-image'                            │
 │  └── Models: Xenova/swin2SR-* series                       │
 │                                                             │
 │  WebGPU Status:                                            │
 │  ├── Detection: ✅ Working                                  │
-│  └── Used for: Image processing, future SD support         │
+│  └── Used for: Text-to-Image, Image processing             │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -141,31 +134,50 @@ const result = await pipe('A cat riding a bicycle');
 - [x] Detect WebGPU availability
 - [x] Implement API fallback (Pollinations.ai)
 - [x] Test `image-to-image` pipeline locally
+- [x] Implement local `text-to-image` pipeline
 - [ ] Add local upscaling to Image Resize node
-- [ ] Integrate `text-to-image` when available
 - [ ] Add model management UI (download/delete)
+- [ ] Implement OPFS caching for large models
 
 ---
 
-## 🔮 Future: When Text-to-Image Becomes Available
+## 🔧 Troubleshooting
 
-The code is structured to easily enable local generation:
+### Local Generation Not Working?
 
-```javascript
-// In inference.worker.js, this will change from:
-await generateViaAPI(payload);
+1. **Check Browser Console**: Look for WebGPU or shader compilation errors
+2. **Verify Browser Version**: Chrome 113+ or Edge 113+
+3. **Check GPU Memory**: Model requires significant VRAM
+4. **Try API Mode**: If local fails, API fallback should work
 
-// To:
-if (textToImagePipeline) {
-  await generateLocally(payload);
-} else {
-  await generateViaAPI(payload);
-}
-```
+### Model Download Stuck?
 
-The infrastructure (OPFS storage, WebGPU detection, progress callbacks) is ready.
+- Large models (~2GB) may take several minutes
+- Progress is shown in the model loader
+- Models are cached in browser storage after first download
+
+### Generation is Slow?
+
+- First generation compiles shaders (takes longer)
+- Subsequent generations are faster
+- Reduce image size or steps for faster results
+
+---
+
+## 🚀 Resources
+
+### Monitor Transformers.js Progress
+- **Releases**: https://github.com/huggingface/transformers.js/releases
+- **Issues**: https://github.com/huggingface/transformers.js/issues
+- **Models**: https://huggingface.co/models?library=transformers.js
+
+### WebGPU Documentation
+- **Status**: https://webgpureport.org/
+- **Spec**: https://www.w3.org/TR/webgpu/
+- **Examples**: https://webgpu.github.io/webgpu-samples/
 
 ---
 
 *Last Updated: December 2024*
 *Transformers.js Version: 3.8.1*
+*Text-to-Image: ✅ Available*

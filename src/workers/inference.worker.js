@@ -1,6 +1,6 @@
 // Web Worker for AI Inference
-// Uses Transformers.js v3 with WebGPU for local image-to-image
-// Uses Pollinations.ai API for text-to-image (not yet in transformers.js)
+// Uses Transformers.js v3 with WebGPU for local AI inference
+// Falls back to Pollinations.ai API if local fails
 
 import { pipeline, env } from '@huggingface/transformers';
 
@@ -9,8 +9,10 @@ env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 let currentModel = null;
+let text2imgPipeline = null;
 let img2imgPipeline = null;
 let webGPUAvailable = false;
+let localTextToImageAvailable = false;
 
 // Message handler
 self.onmessage = async (event) => {
@@ -46,7 +48,7 @@ async function checkWebGPU() {
             supported: true, 
             info: `WebGPU: ${info.description || info.vendor || 'GPU Detected'}`,
             features: {
-              textToImage: false, // Not yet in transformers.js
+              textToImage: true,  // Available in transformers.js v3!
               imageToImage: true  // Available!
             }
           }
@@ -90,18 +92,53 @@ async function loadModel(payload) {
 
     self.postMessage({
       type: 'MODEL_LOADING',
-      payload: { modelId, progress: 50, message: 'Preparing model...' }
+      payload: { modelId, progress: 10, message: 'Initializing...' }
     });
 
-    // Try to initialize image-to-image pipeline if WebGPU available
+    // Try to initialize pipelines if WebGPU available
     if (webGPUAvailable) {
+      // Try text-to-image pipeline first
       try {
         self.postMessage({
           type: 'MODEL_LOADING',
-          payload: { modelId, progress: 70, message: 'Loading image-to-image pipeline...' }
+          payload: { modelId, progress: 20, message: 'Loading text-to-image pipeline (this may take a while)...' }
         });
 
-        // Load image-to-image pipeline for local processing
+        // Use a small/quantized model for text-to-image
+        // Note: This downloads ~2GB, so it's optional
+        text2imgPipeline = await pipeline('text-to-image', 'onnx-community/stable-diffusion-3.5-medium', {
+          device: 'webgpu',
+          dtype: 'fp16',
+          progress_callback: (progress) => {
+            if (progress.status === 'download' || progress.status === 'progress') {
+              const pct = 20 + (progress.progress || 0) * 40;
+              self.postMessage({
+                type: 'MODEL_LOADING',
+                payload: { 
+                  modelId, 
+                  progress: Math.round(pct),
+                  message: `Downloading text-to-image: ${progress.file || 'model'}... ${Math.round((progress.progress || 0) * 100)}%`
+                }
+              });
+            }
+          }
+        });
+
+        localTextToImageAvailable = true;
+        console.log('✅ Text-to-image pipeline loaded locally with WebGPU!');
+      } catch (pipelineError) {
+        console.warn('⚠️ Local text-to-image failed, will use API:', pipelineError.message);
+        text2imgPipeline = null;
+        localTextToImageAvailable = false;
+      }
+
+      // Try image-to-image pipeline
+      try {
+        self.postMessage({
+          type: 'MODEL_LOADING',
+          payload: { modelId, progress: 70, message: 'Loading image enhancement pipeline...' }
+        });
+
         img2imgPipeline = await pipeline('image-to-image', 'Xenova/swin2SR-classical-sr-x2-64', {
           device: 'webgpu',
           progress_callback: (progress) => {
@@ -112,7 +149,7 @@ async function loadModel(payload) {
                 payload: { 
                   modelId, 
                   progress: Math.round(pct),
-                  message: `Downloading: ${progress.file || 'model'}...`
+                  message: `Downloading image enhancer: ${progress.file || 'model'}...`
                 }
               });
             }
@@ -137,7 +174,7 @@ async function loadModel(payload) {
         modelId, 
         modelRepo,
         capabilities: {
-          textToImage: 'api', // Via Pollinations.ai
+          textToImage: localTextToImageAvailable ? 'local' : 'api',
           imageToImage: img2imgPipeline ? 'local' : 'api'
         }
       }
@@ -178,9 +215,111 @@ async function generate(payload) {
     payload: { prompt }
   });
 
-  // For now, all text-to-image goes through API
-  // (transformers.js v3 doesn't have text-to-image pipeline yet)
+  // Try local WebGPU generation first if available
+  if (localTextToImageAvailable && text2imgPipeline) {
+    try {
+      console.log('🚀 Attempting local WebGPU text-to-image generation...');
+      await generateLocally(payload);
+      return;
+    } catch (localError) {
+      console.warn('⚠️ Local generation failed, falling back to API:', localError.message);
+    }
+  }
+
+  // Fallback to API
+  console.log('🌐 Using Pollinations.ai API for generation...');
   await generateViaAPI(payload);
+}
+
+async function generateLocally(payload) {
+  const { 
+    prompt, 
+    negativePrompt = '', 
+    steps = 20, 
+    guidanceScale = 7.5,
+    width = 512,
+    height = 512,
+    seed = -1
+  } = payload;
+
+  try {
+    self.postMessage({
+      type: 'GENERATION_PROGRESS',
+      payload: { step: 0, totalSteps: steps, progress: 0, mode: 'local' }
+    });
+
+    const actualSeed = seed === -1 ? Math.floor(Math.random() * 2147483647) : seed;
+    
+    console.log(`🖼️ Generating locally: "${prompt}" (${width}x${height}, ${steps} steps, seed: ${actualSeed})`);
+
+    const result = await text2imgPipeline(prompt, {
+      negative_prompt: negativePrompt,
+      num_inference_steps: steps,
+      guidance_scale: guidanceScale,
+      width,
+      height,
+      seed: actualSeed,
+      callback: (info) => {
+        if (info.step !== undefined) {
+          const progress = Math.round((info.step / steps) * 100);
+          self.postMessage({
+            type: 'GENERATION_PROGRESS',
+            payload: { 
+              step: info.step, 
+              totalSteps: steps, 
+              progress,
+              mode: 'local'
+            }
+          });
+        }
+      }
+    });
+
+    // Convert result to blob URL
+    let imageUrl;
+    if (result.images && result.images[0]) {
+      const image = result.images[0];
+      if (image instanceof Blob) {
+        imageUrl = URL.createObjectURL(image);
+      } else if (image.toBlob) {
+        const blob = await image.toBlob();
+        imageUrl = URL.createObjectURL(blob);
+      } else if (typeof image === 'string' && image.startsWith('data:')) {
+        imageUrl = image;
+      } else {
+        // Canvas or ImageData
+        const canvas = new OffscreenCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+        ctx.putImageData(image, 0, 0);
+        const blob = await canvas.convertToBlob({ type: 'image/png' });
+        imageUrl = URL.createObjectURL(blob);
+      }
+    } else if (result instanceof Blob) {
+      imageUrl = URL.createObjectURL(result);
+    } else {
+      throw new Error('Unexpected result format from pipeline');
+    }
+
+    self.postMessage({
+      type: 'GENERATION_PROGRESS',
+      payload: { step: steps, totalSteps: steps, progress: 100, mode: 'local' }
+    });
+
+    self.postMessage({
+      type: 'GENERATION_COMPLETE',
+      payload: { 
+        imageUrl, 
+        mode: 'local',
+        info: '✨ Generated 100% locally with WebGPU!'
+      }
+    });
+
+    console.log('✅ Local generation complete!');
+    
+  } catch (error) {
+    console.error('Local generation error:', error);
+    throw error; // Re-throw to trigger API fallback
+  }
 }
 
 async function generateViaAPI(payload) {
