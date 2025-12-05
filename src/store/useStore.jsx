@@ -174,6 +174,11 @@ export function StoreProvider({ children }) {
         case 'GENERATION_ERROR':
           dispatch({ type: 'GENERATION_ERROR', payload });
           break;
+        case 'GENERATION_WARNING':
+          // Show warning but don't block generation
+          console.warn('⚠️ Generation warning:', payload?.message || payload);
+          // You could dispatch this to show a toast notification
+          break;
         default:
           console.log('Unknown worker message:', type);
       }

@@ -365,19 +365,48 @@ async function processImageLocally(imageData, options) {
     });
 
     // Convert result to blob URL
+    // The pipeline can return different formats depending on the model
     let imageUrl;
+    
+    console.log('Pipeline result type:', typeof result, result);
+    
     if (result instanceof Blob) {
       imageUrl = URL.createObjectURL(result);
+    } else if (result instanceof ImageData) {
+      // Convert ImageData to Blob via Canvas
+      const canvas = new OffscreenCanvas(result.width, result.height);
+      const ctx = canvas.getContext('2d');
+      ctx.putImageData(result, 0, 0);
+      const blob = await canvas.convertToBlob({ type: 'image/png' });
+      imageUrl = URL.createObjectURL(blob);
+    } else if (result instanceof HTMLImageElement || result instanceof Image) {
+      // Convert Image to Blob via Canvas
+      const canvas = new OffscreenCanvas(result.width, result.height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(result, 0, 0);
+      const blob = await canvas.convertToBlob({ type: 'image/png' });
+      imageUrl = URL.createObjectURL(blob);
     } else if (result.images && result.images[0]) {
       const image = result.images[0];
       if (image instanceof Blob) {
         imageUrl = URL.createObjectURL(image);
+      } else if (image instanceof ImageData) {
+        const canvas = new OffscreenCanvas(image.width, image.height);
+        const ctx = canvas.getContext('2d');
+        ctx.putImageData(image, 0, 0);
+        const blob = await canvas.convertToBlob({ type: 'image/png' });
+        imageUrl = URL.createObjectURL(blob);
+      } else if (typeof image === 'string' && image.startsWith('data:')) {
+        imageUrl = image; // Already a data URL
       } else {
-        // Convert to blob if needed
-        imageUrl = URL.createObjectURL(image);
+        console.warn('Unexpected image format in result.images[0]:', typeof image, image);
+        throw new Error(`Unexpected image format: ${typeof image}`);
       }
+    } else if (typeof result === 'string' && result.startsWith('data:')) {
+      imageUrl = result; // Already a data URL
     } else {
-      throw new Error('Unexpected result format from pipeline');
+      console.error('Unexpected result format:', typeof result, result);
+      throw new Error(`Unexpected result format from pipeline: ${typeof result}. Expected Blob, ImageData, Image, or {images: [...]}`);
     }
 
     self.postMessage({
