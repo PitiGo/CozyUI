@@ -188,19 +188,30 @@ async function generate(payload) {
     console.log('🖼️ Image-to-Image mode detected');
     
     // Try local processing first if pipeline is available
+    // Note: Current pipeline is for super-resolution/enhancement, not prompt-based img2img
     if (img2imgPipeline && webGPUAvailable) {
       try {
-        console.log('🚀 Attempting local WebGPU image-to-image processing...');
+        console.log('🚀 Attempting local WebGPU image enhancement (super-resolution)...');
+        console.log('⚠️ Note: Local pipeline enhances image quality but does not apply prompts');
         await processImageLocally(sourceImage, { prompt, strength });
         return;
       } catch (localError) {
-        console.warn('⚠️ Local image processing failed, falling back to API:', localError.message);
+        console.warn('⚠️ Local image processing failed:', localError.message);
       }
     }
     
-    // Fallback to API for image-to-image
-    console.log('🌐 Using Pollinations.ai API for image-to-image generation...');
-    await generateViaAPI(payload);
+    // Pollinations.ai API doesn't support image-to-image with source images
+    // For now, we'll generate text-to-image and inform the user
+    console.warn('⚠️ Image-to-Image with prompts is not yet supported via API');
+    console.log('🌐 Generating text-to-image instead (source image will be ignored)...');
+    self.postMessage({
+      type: 'GENERATION_WARNING',
+      payload: { 
+        message: 'Image-to-Image with prompts is not yet supported. Generating text-to-image instead. The local pipeline can enhance images but does not apply prompts.',
+        mode: 'api'
+      }
+    });
+    await generateViaAPI({ ...payload, sourceImage: null }); // Remove sourceImage for API
   } else {
     // Text-to-image mode - always use API
     // NOTE: text-to-image pipeline is NOT available in transformers.js v3.8.1

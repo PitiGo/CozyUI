@@ -43,8 +43,8 @@ In the **Image to Image** node, you can:
 
 Click **Generate** in the Run Inference node. The system will:
 1. Detect the image from the Image to Image node
-2. Try local WebGPU processing (if available)
-3. Fall back to API if local processing fails
+2. Try local WebGPU processing for image enhancement (if available)
+3. **Note**: Full image-to-image with prompts is not yet supported. The local pipeline enhances image quality but doesn't apply prompts.
 
 ---
 
@@ -78,20 +78,25 @@ Change the background while keeping the subject:
 
 ## ⚙️ How It Works
 
-### Local Processing (WebGPU)
+### Current Limitations
 
-When WebGPU is available and the image-to-image pipeline is loaded:
-- Uses local GPU processing
-- Faster (no network delay)
-- Private (image stays in your browser)
-- Currently supports: Super-resolution and enhancement
+**Important**: Full image-to-image with prompts (like Stable Diffusion img2img) is **not yet fully supported**:
 
-### API Fallback
+1. **Local Processing (WebGPU)**:
+   - ✅ Available: Super-resolution and image enhancement
+   - ❌ Not available: Image-to-image with prompts
+   - The local pipeline (`Xenova/swin2SR-classical-sr-x2-64`) enhances image quality but doesn't apply text prompts
 
-If local processing isn't available:
-- Uses Pollinations.ai API
-- Works on any device
-- Supports full image-to-image transformations with prompts
+2. **API Fallback**:
+   - ❌ Pollinations.ai API doesn't support image-to-image with source images
+   - Currently generates text-to-image instead (ignores source image)
+
+### Future Support
+
+When `text-to-image` pipeline becomes available in transformers.js, we'll be able to:
+- Use local WebGPU for full image-to-image with prompts
+- Apply your text prompts to transform the source image
+- Control transformation strength with the Denoising Strength slider
 
 ---
 
