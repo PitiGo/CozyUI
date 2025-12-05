@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'react';
-import { Handle, Position, useReactFlow, useNodes } from '@xyflow/react';
+import { Handle, Position, useReactFlow, useNodes, useEdges } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { Cpu, Play, Loader2 } from 'lucide-react';
 import { useStore } from '../../store/useStore.jsx';
@@ -7,6 +7,7 @@ import { useStore } from '../../store/useStore.jsx';
 const InferenceNode = ({ id, data, isConnectable }) => {
   const { updateNodeData } = useReactFlow();
   const nodes = useNodes();
+  const edges = useEdges();
   const { state, actions } = useStore();
 
   const handleChange = useCallback((field, value) => {
@@ -18,39 +19,51 @@ const InferenceNode = ({ id, data, isConnectable }) => {
     console.log('🚀 Generate clicked!');
     console.log('Nodes:', nodes);
     
-    // Find the prompt node
-    const promptNode = nodes.find(n => n.type === 'promptNode');
-    const modelNode = nodes.find(n => n.type === 'modelLoaderNode');
-    const img2imgNode = nodes.find(n => n.type === 'img2imgNode');
+    // Find connected nodes via edges
+    const promptEdge = edges.find(e => e.target === id && e.targetHandle === 'prompt-in');
+    const imageEdge = edges.find(e => e.target === id && e.targetHandle === 'image-in');
+    const modelEdge = edges.find(e => e.target === id && e.targetHandle === 'model-in');
     
-    if (!promptNode) {
-      alert('Please add a Text Prompt node and connect it');
+    const promptNode = promptEdge ? nodes.find(n => n.id === promptEdge.source) : null;
+    const img2imgNode = imageEdge ? nodes.find(n => n.id === imageEdge.source) : null;
+    const modelNode = modelEdge ? nodes.find(n => n.id === modelEdge.source) : null;
+    
+    // Fallback: if no connection, try to find by type (for backward compatibility)
+    const promptNodeByType = promptNode || nodes.find(n => n.type === 'promptNode');
+    const modelNodeByType = modelNode || nodes.find(n => n.type === 'modelLoaderNode');
+    const img2imgNodeByType = img2imgNode || nodes.find(n => n.type === 'img2imgNode');
+    
+    if (!promptNodeByType) {
+      alert('Please add a Text Prompt node and connect it to the prompt input (top handle)');
       return;
     }
     
-    if (!modelNode) {
-      alert('Please add a Model Loader node and connect it');
+    if (!modelNodeByType) {
+      alert('Please add a Model Loader node and connect it to the model input (bottom handle)');
       return;
     }
 
-    const prompt = promptNode.data?.prompt;
+    const prompt = promptNodeByType.data?.prompt;
     if (!prompt || prompt.trim() === '') {
       alert('Please enter a prompt in the Text Prompt node');
       return;
     }
 
-    const selectedModel = modelNode.data?.selectedModel;
+    const selectedModel = modelNodeByType.data?.selectedModel;
     if (!selectedModel) {
       alert('Please select a model in the Model Loader node');
       return;
     }
 
-    // Check if image-to-image is being used
-    const sourceImage = img2imgNode?.data?.imageUrl || null;
-    const strength = img2imgNode?.data?.strength ?? 0.75;
+    // Check if image-to-image is being used (from connected node or by type)
+    const sourceImage = (img2imgNode || img2imgNodeByType)?.data?.imageUrl || null;
+    const strength = (img2imgNode || img2imgNodeByType)?.data?.strength ?? 0.75;
     
     if (sourceImage) {
       console.log('🖼️ Image-to-Image mode detected');
+      if (!img2imgNode) {
+        console.log('💡 Tip: Connect Image to Image node to the middle handle for better workflow clarity');
+      }
     }
 
     // First load the model if not loaded
@@ -72,7 +85,7 @@ const InferenceNode = ({ id, data, isConnectable }) => {
       sourceImage: sourceImage, // Pass image for img2img
       strength: strength, // Pass strength for img2img
     });
-  }, [nodes, data, state.model, actions]);
+  }, [nodes, edges, data, state.model, actions]);
 
   const steps = data.steps || 20;
   const guidanceScale = data.guidanceScale || 7.5;
@@ -94,15 +107,23 @@ const InferenceNode = ({ id, data, isConnectable }) => {
         type="target"
         position={Position.Left}
         id="prompt-in"
-        style={{ top: '30%' }}
+        style={{ top: '25%' }}
         isConnectable={isConnectable}
         className="!bg-indigo-500 !border-indigo-300"
       />
       <Handle
         type="target"
         position={Position.Left}
+        id="image-in"
+        style={{ top: '50%' }}
+        isConnectable={isConnectable}
+        className="!bg-rose-500 !border-rose-300"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
         id="model-in"
-        style={{ top: '70%' }}
+        style={{ top: '75%' }}
         isConnectable={isConnectable}
         className="!bg-violet-500 !border-violet-300"
       />
