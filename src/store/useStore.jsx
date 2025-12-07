@@ -5,47 +5,55 @@ import { opfsService, browserCacheService } from '../services/opfsService.js';
 const StoreContext = createContext(null);
 
 // Available models list (exported for use in components)
-// Text-to-Image uses Pollinations.ai API (reliable, fast)
-// Local generation will be enabled when Transformers.js v3 supports it
+// 2025 Update: Local WebGPU generation now available with optimized models!
 export const AVAILABLE_MODELS = [
-  // Cloud API Models
+  // === LOCAL WEBGPU MODELS (2025) ===
+  {
+    id: 'sd-turbo-q8',
+    name: 'SD Turbo (Local)',
+    repo: 'Xenova/sdxl-turbo',
+    engine: 'local',
+    description: '🖥️ 1-4 steps, ~1.2GB',
+    size: '~1.2GB',
+    capabilities: { textToImage: 'local' }
+  },
+  {
+    id: 'sd-turbo-small',
+    name: 'SD Turbo Small',
+    repo: 'Xenova/sd-turbo',
+    engine: 'local',
+    description: '⚡ Fast local, ~400MB',
+    size: '~400MB',
+    capabilities: { textToImage: 'local' }
+  },
+  // === CLOUD API MODELS ===
   {
     id: 'flux',
-    name: 'Flux',
+    name: 'Flux (Cloud)',
     repo: 'flux',
     engine: 'api',
-    description: '🎨 Best quality'
+    description: '☁️ Best quality'
   },
   {
     id: 'turbo',
-    name: 'Turbo',
+    name: 'Turbo (Cloud)',
     repo: 'turbo',
     engine: 'api',
-    description: '⚡ Fastest'
+    description: '☁️ Fastest API'
   },
   {
     id: 'flux-realism',
-    name: 'Realism',
+    name: 'Realism (Cloud)',
     repo: 'flux-realism',
     engine: 'api',
-    description: '📸 Photo style'
+    description: '☁️ Photorealistic'
   },
   {
     id: 'flux-anime',
-    name: 'Anime',
+    name: 'Anime (Cloud)',
     repo: 'flux-anime',
     engine: 'api',
-    description: '🎌 Anime style'
-  },
-  // Local Models (Coming Soon)
-  {
-    id: 'sd-local',
-    name: 'SD 1.5 Local',
-    repo: 'Xenova/stable-diffusion-v1-5',
-    engine: 'local',
-    description: '🖥️ Coming Soon',
-    disabled: true,
-    comingSoon: true
+    description: '☁️ Anime style'
   }
 ];
 

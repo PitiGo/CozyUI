@@ -67,8 +67,9 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
 
     // Configure model if needed
     if (state.model.status !== 'loaded' || state.model.id !== selectedModel.id) {
-      console.log('🌐 Configuring:', selectedModel.name);
-      actions.loadModel(selectedModel.id, selectedModel.repo);
+      const isLocal = selectedModel.engine === 'local';
+      console.log(isLocal ? '🖥️ Loading local model:' : '☁️ Configuring:', selectedModel.name);
+      actions.loadModel(selectedModel.id, selectedModel.repo, selectedModel.engine || 'api');
     }
     
     // Generate via API
