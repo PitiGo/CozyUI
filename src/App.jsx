@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -233,6 +233,93 @@ function Flow() {
     }
   }, [state.model.status, state.model.error, toast]);
 
+  // Track previous node outputs to detect changes
+  const prevOutputsRef = useRef({});
+
+  // Create a stable key from node outputs
+  const outputsKey = useMemo(() => {
+    return nodes
+      .filter(n => (n.type === 'backgroundRemovalNode' && n.data?.outputImage) || 
+                   (n.type === 'img2imgNode' && n.data?.imageUrl))
+      .map(n => `${n.id}:${n.data?.outputImage || n.data?.imageUrl || ''}`)
+      .join('|');
+  }, [nodes]);
+
+  // Propagate data through connections when node outputs change
+  useEffect(() => {
+    const currentOutputs = {};
+    const nodesToUpdate = new Map();
+
+    // Collect all outputs
+    nodes.forEach(node => {
+      if (node.type === 'backgroundRemovalNode' && node.data?.outputImage) {
+        currentOutputs[node.id] = { type: 'bg', value: node.data.outputImage };
+      } else if (node.type === 'img2imgNode' && node.data?.imageUrl) {
+        currentOutputs[node.id] = { type: 'img', value: node.data.imageUrl };
+      }
+    });
+
+    // Check for changes and collect updates
+    Object.keys(currentOutputs).forEach(nodeId => {
+      const output = currentOutputs[nodeId];
+      const prevOutput = prevOutputsRef.current[nodeId];
+      
+      if (!prevOutput || prevOutput.value !== output.value) {
+        prevOutputsRef.current[nodeId] = output;
+        
+        // Find connected nodes
+        const connectedEdges = edges.filter(e => e.source === nodeId);
+        connectedEdges.forEach(edge => {
+          const targetId = edge.target;
+          if (!nodesToUpdate.has(targetId)) {
+            nodesToUpdate.set(targetId, {});
+          }
+          
+          nodesToUpdate.set(targetId, { ...nodesToUpdate.get(targetId), imageUrl: output.value });
+        });
+      }
+    });
+
+    // Apply updates
+    if (nodesToUpdate.size > 0) {
+      setNodes((nds) => {
+        return nds.map((node) => {
+          const updates = nodesToUpdate.get(node.id);
+          if (!updates) return node;
+
+          if (node.type === 'imageDisplayNode' && updates.imageUrl) {
+            return {
+              ...node,
+              data: { ...node.data, imageUrl: updates.imageUrl, isLoading: false }
+            };
+          }
+          if (node.type === 'img2imgNode' && updates.imageUrl) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                imageUrl: updates.imageUrl,
+                originalWidth: node.data?.originalWidth || 512,
+                originalHeight: node.data?.originalHeight || 512
+              }
+            };
+          }
+          if (node.type === 'backgroundRemovalNode' && updates.imageUrl) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                inputImage: updates.imageUrl,
+                outputImage: null
+              }
+            };
+          }
+          return node;
+        });
+      });
+    }
+  }, [outputsKey, edges, setNodes, nodes]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -256,24 +343,76 @@ function Flow() {
   const onConnect = useCallback(
     (params) => {
       const sourceNode = nodes.find(n => n.id === params.source);
+      const targetNode = nodes.find(n => n.id === params.target);
       let strokeColor = '#6366f1';
       
       if (sourceNode?.type === 'modelLoaderNode') strokeColor = '#8b5cf6';
       else if (sourceNode?.type === 'inferenceNode') strokeColor = '#10b981';
       else if (sourceNode?.type === 'promptNode') strokeColor = '#6366f1';
+      else if (sourceNode?.type === 'backgroundRemovalNode') strokeColor = '#f43f5e';
+      else if (sourceNode?.type === 'img2imgNode') strokeColor = '#f43f5e';
 
-      setEdges((eds) =>
-        addEdge(
+      setEdges((eds) => {
+        const newEdges = addEdge(
           {
             ...params,
             animated: true,
             style: { stroke: strokeColor, strokeWidth: 2 },
           },
           eds
-        )
-      );
+        );
+
+        // Immediately propagate data if source has output
+        if (sourceNode) {
+          let outputValue = null;
+          if (sourceNode.type === 'backgroundRemovalNode' && sourceNode.data?.outputImage) {
+            outputValue = sourceNode.data.outputImage;
+          } else if (sourceNode.type === 'img2imgNode' && sourceNode.data?.imageUrl) {
+            outputValue = sourceNode.data.imageUrl;
+          }
+
+          if (outputValue && targetNode) {
+            setTimeout(() => {
+              setNodes((nds) => {
+                return nds.map((node) => {
+                  if (node.id === targetNode.id) {
+                    if (targetNode.type === 'imageDisplayNode') {
+                      return {
+                        ...node,
+                        data: { ...node.data, imageUrl: outputValue, isLoading: false }
+                      };
+                    } else if (targetNode.type === 'img2imgNode') {
+                      return {
+                        ...node,
+                        data: {
+                          ...node.data,
+                          imageUrl: outputValue,
+                          originalWidth: node.data?.originalWidth || 512,
+                          originalHeight: node.data?.originalHeight || 512
+                        }
+                      };
+                    } else if (targetNode.type === 'backgroundRemovalNode') {
+                      return {
+                        ...node,
+                        data: {
+                          ...node.data,
+                          inputImage: outputValue,
+                          outputImage: null
+                        }
+                      };
+                    }
+                  }
+                  return node;
+                });
+              });
+            }, 0);
+          }
+        }
+
+        return newEdges;
+      });
     },
-    [nodes, setEdges]
+    [nodes, setEdges, setNodes]
   );
 
   const onDragOver = useCallback((event) => {
