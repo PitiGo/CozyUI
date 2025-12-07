@@ -5,9 +5,8 @@
 import { 
   pipeline, 
   env,
-  AutoModelForVision2Seq,
   AutoProcessor,
-  RawImage
+  MultiModalityCausalLM  // Clase específica para Janus multimodal
 } from '@huggingface/transformers';
 
 // Configure Transformers.js for 2025
@@ -15,8 +14,6 @@ env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 let currentModel = null;
-let janusModel = null; // For Janus multimodal generation
-let janusProcessor = null;
 let img2imgPipeline = null; // For local image enhancement
 let webGPUAvailable = false;
 
@@ -91,12 +88,6 @@ async function loadModel(payload) {
   const { modelId, modelRepo, engine = 'api' } = payload;
 
   try {
-    currentModel = {
-      id: modelId,
-      repo: modelRepo,
-      engine: engine
-    };
-
     console.log(`📦 Loading model: ${modelId} (${engine})`);
 
     self.postMessage({
@@ -105,28 +96,26 @@ async function loadModel(payload) {
     });
 
     // ========== LOCAL JANUS MODEL (2025) ==========
-    if (engine === 'local' && webGPUAvailable) {
-      console.log('🖥️ Loading Janus multimodal model...');
+    if (engine === 'local' && webGPUAvailable && modelId.includes('janus')) {
+      console.log('🖥️ Loading Janus MultiModality model...');
       
       try {
         self.postMessage({
           type: 'MODEL_LOADING',
-          payload: { modelId, progress: 20, message: 'Loading Janus model (this may take a while)...' }
+          payload: { modelId, progress: 20, message: 'Loading Processor...' }
         });
 
-        // Load Janus model with WebGPU
-        janusModel = await AutoModelForVision2Seq.from_pretrained(modelRepo, {
-          device: 'webgpu',
-          dtype: 'q4', // Quantized for web performance
+        // 1. Load the Processor (handles text and images)
+        const processor = await AutoProcessor.from_pretrained(modelRepo, {
           progress_callback: (progress) => {
             if (progress.status === 'progress' || progress.status === 'download') {
-              const pct = 20 + Math.round((progress.progress || 0) * 0.5);
+              const pct = 20 + Math.round((progress.progress || 0) * 0.2);
               self.postMessage({
                 type: 'MODEL_LOADING',
                 payload: { 
                   modelId, 
                   progress: pct,
-                  message: `Downloading model: ${Math.round(progress.progress || 0)}%`
+                  message: `Loading processor: ${Math.round(progress.progress || 0)}%`
                 }
               });
             }
@@ -135,12 +124,40 @@ async function loadModel(payload) {
 
         self.postMessage({
           type: 'MODEL_LOADING',
-          payload: { modelId, progress: 75, message: 'Loading processor...' }
+          payload: { modelId, progress: 40, message: 'Loading Model (WebGPU)...' }
         });
 
-        janusProcessor = await AutoProcessor.from_pretrained(modelRepo);
+        // 2. Load the Model using MultiModalityCausalLM (specific for Janus)
+        const model = await MultiModalityCausalLM.from_pretrained(modelRepo, {
+          device: 'webgpu',
+          dtype: 'q4', // Quantized for web performance
+          use_external_data_format: true, // Common for large ONNX models
+          progress_callback: (progress) => {
+            if (progress.status === 'progress' || progress.status === 'download') {
+              const pct = 40 + Math.round((progress.progress || 0) * 0.5);
+              self.postMessage({
+                type: 'MODEL_LOADING',
+                payload: { 
+                  modelId, 
+                  progress: pct,
+                  message: `Loading model: ${Math.round(progress.progress || 0)}%`
+                }
+              });
+            }
+          }
+        });
 
-        console.log('✅ Janus model loaded!');
+        // Store in global variable for use in generate()
+        currentModel = {
+          id: modelId,
+          repo: modelRepo,
+          instance: model,      // Model instance
+          processor: processor, // Processor instance
+          type: 'multimodal',   // Mark as multimodal
+          engine: 'local'
+        };
+
+        console.log('✅ Janus loaded successfully!');
 
         self.postMessage({
           type: 'MODEL_LOADING',
@@ -164,14 +181,20 @@ async function loadModel(payload) {
 
       } catch (err) {
         console.warn('⚠️ Local Janus model failed, falling back to API:', err.message);
-        janusModel = null;
-        janusProcessor = null;
+        currentModel = null;
         // Fall through to API mode
       }
     }
 
     // ========== API MODEL (Cloud) ==========
     console.log('☁️ Configuring cloud API model...');
+
+    currentModel = {
+      id: modelId,
+      repo: modelRepo,
+      engine: 'api',
+      type: 'api'
+    };
 
     self.postMessage({
       type: 'MODEL_LOADING',
@@ -276,9 +299,9 @@ async function generate(payload) {
     }
   }
 
-  // ========== LOCAL JANUS GENERATION (2025) ==========
-  if (currentModel.engine === 'local' && janusModel && janusProcessor) {
-    console.log('🖥️ Generating with Janus (local WebGPU)...');
+  // ========== LOCAL MULTIMODAL GENERATION (Janus 2025) ==========
+  if (currentModel && currentModel.type === 'multimodal') {
+    console.log('🖥️ Generating with Janus (Multimodal WebGPU)...');
     try {
       await generateWithJanus(payload);
       return;
@@ -292,7 +315,7 @@ async function generate(payload) {
   await generateViaAPI(payload);
 }
 
-// ========== JANUS LOCAL GENERATION (2025) ==========
+// ========== JANUS MULTIMODAL GENERATION (2025) ==========
 async function generateWithJanus(payload) {
   const { 
     prompt, 
@@ -301,70 +324,86 @@ async function generateWithJanus(payload) {
     seed = -1
   } = payload;
 
-  if (!janusModel || !janusProcessor) {
+  if (!currentModel || !currentModel.instance || !currentModel.processor) {
     throw new Error('Janus model not loaded');
   }
+
+  const { instance, processor } = currentModel;
 
   try {
     const actualSeed = seed === -1 ? Math.floor(Math.random() * 2147483647) : seed;
     
-    console.log(`🖥️ Janus: ${width}x${height} | Seed: ${actualSeed}`);
+    console.log(`🖥️ Janus generation: "${prompt.substring(0, 50)}..." | Seed: ${actualSeed}`);
 
     self.postMessage({
       type: 'GENERATION_PROGRESS',
-      payload: { progress: 10, mode: 'local', message: 'Preparing generation...' }
+      payload: { progress: 10, mode: 'local', message: 'Preparing prompt...' }
     });
 
-    // Prepare the generation prompt for Janus
+    // Janus expects a specific prompt format for image generation
+    // Template: "User: Generate an image of X\nAssistant:"
     const conversation = [
-      {
-        role: "user",
-        content: `Generate an image: ${prompt}`
-      }
+      { role: 'User', content: `Generate an image: ${prompt}` },
+      { role: 'Assistant', content: '' }
     ];
 
-    // Apply chat template
-    const inputs = await janusProcessor(conversation);
+    // Build the prompt string
+    const formattedPrompt = conversation.map(m => `${m.role}: ${m.content}`).join('\n');
+    
+    // Process the input
+    const inputs = await processor(formattedPrompt);
 
     self.postMessage({
       type: 'GENERATION_PROGRESS',
-      payload: { progress: 30, mode: 'local', message: 'Generating...' }
+      payload: { progress: 30, mode: 'local', message: 'Generating with WebGPU...' }
     });
 
     // Generate with Janus
-    const outputs = await janusModel.generate({
+    const outputs = await instance.generate({
       ...inputs,
       max_new_tokens: 512,
       do_sample: true,
+      temperature: 0.7,
     });
 
     self.postMessage({
       type: 'GENERATION_PROGRESS',
-      payload: { progress: 80, mode: 'local', message: 'Processing output...' }
+      payload: { progress: 70, mode: 'local', message: 'Processing output...' }
     });
 
-    // Decode the output
-    const decoded = janusProcessor.batch_decode(outputs, { skip_special_tokens: true });
-    
-    // Extract image from output (Janus outputs base64 or image tokens)
+    // Decode the output - Janus outputs image tokens
+    const decoded = await processor.batch_decode(outputs, { 
+      skip_special_tokens: true,
+      output_images: true 
+    });
+
+    self.postMessage({
+      type: 'GENERATION_PROGRESS',
+      payload: { progress: 90, mode: 'local', message: 'Extracting image...' }
+    });
+
+    // Extract image from output
     let imageUrl;
     
-    // Check if output contains image data
-    if (decoded[0] && decoded[0].includes('data:image')) {
-      // Extract base64 image
-      const match = decoded[0].match(/data:image\/[^;]+;base64,[^"'\s]+/);
-      if (match) {
-        imageUrl = match[0];
+    // Check different output formats
+    if (decoded.images && decoded.images.length > 0) {
+      // Direct image output
+      const img = decoded.images[0];
+      if (img instanceof Blob) {
+        imageUrl = URL.createObjectURL(img);
+      } else if (img.toBlob) {
+        const blob = await img.toBlob();
+        imageUrl = URL.createObjectURL(blob);
+      } else if (typeof img === 'string' && img.startsWith('data:')) {
+        imageUrl = img;
       }
-    }
-
-    if (!imageUrl) {
-      // Fallback: Try to extract image from model output directly
-      if (outputs.images && outputs.images.length > 0) {
-        const img = outputs.images[0];
-        if (img.toBlob) {
-          const blob = await img.toBlob();
-          imageUrl = URL.createObjectURL(blob);
+    } else if (Array.isArray(decoded) && decoded[0]) {
+      // Text output that might contain base64 image
+      const text = decoded[0];
+      if (typeof text === 'string' && text.includes('data:image')) {
+        const match = text.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
+        if (match) {
+          imageUrl = match[0];
         }
       }
     }
@@ -422,7 +461,7 @@ async function generateViaAPI(payload) {
     const actualSeed = seed === -1 ? Math.floor(Math.random() * 2147483647) : seed;
     
     // For API models, use the repo directly; for local models falling back, use 'flux'
-    const model = currentModel.engine === 'api' ? (currentModel.repo || 'flux') : 'flux';
+    const model = currentModel?.engine === 'api' ? (currentModel.repo || 'flux') : 'flux';
     
     // Build URL
     const encodedPrompt = encodeURIComponent(prompt);
