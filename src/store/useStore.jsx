@@ -217,6 +217,8 @@ function reducer(state, action) {
 export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const workerRef = useRef(null);
+  const bgRemovalCallbacksRef = useRef({});
+  const bgRemovalIdRef = useRef(0);
 
   // Initialize worker
   useEffect(() => {
@@ -256,7 +258,22 @@ export function StoreProvider({ children }) {
         case 'GENERATION_WARNING':
           // Show warning but don't block generation
           console.warn('⚠️ Generation warning:', payload?.message || payload);
-          // You could dispatch this to show a toast notification
+          break;
+        case 'BG_REMOVAL_PROGRESS':
+          // Could dispatch to show progress if needed
+          console.log('🔄 BG Removal:', payload.message, payload.progress + '%');
+          break;
+        case 'BG_REMOVAL_COMPLETE':
+          if (payload.callbackId && bgRemovalCallbacksRef.current[payload.callbackId]) {
+            bgRemovalCallbacksRef.current[payload.callbackId]({ imageUrl: payload.imageUrl });
+            delete bgRemovalCallbacksRef.current[payload.callbackId];
+          }
+          break;
+        case 'BG_REMOVAL_ERROR':
+          if (payload.callbackId && bgRemovalCallbacksRef.current[payload.callbackId]) {
+            bgRemovalCallbacksRef.current[payload.callbackId]({ error: payload.error });
+            delete bgRemovalCallbacksRef.current[payload.callbackId];
+          }
           break;
         default:
           console.log('Unknown worker message:', type);
@@ -318,6 +335,19 @@ export function StoreProvider({ children }) {
       workerRef.current.postMessage({
         type: 'GENERATE',
         payload: config
+      });
+    }
+  }, []);
+
+  // Background removal action
+  const removeBackground = useCallback((imageData, callback) => {
+    if (workerRef.current) {
+      const callbackId = ++bgRemovalIdRef.current;
+      bgRemovalCallbacksRef.current[callbackId] = callback;
+      
+      workerRef.current.postMessage({
+        type: 'REMOVE_BACKGROUND',
+        payload: { imageData, callbackId }
       });
     }
   }, []);
@@ -409,6 +439,7 @@ export function StoreProvider({ children }) {
     actions: {
       loadModel,
       generate,
+      removeBackground,
       resetGeneration,
       refreshCacheStatus,
       deleteModelFromCache,

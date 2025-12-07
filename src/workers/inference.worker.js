@@ -1,6 +1,7 @@
 // Web Worker for AI Inference
 // Text-to-Image: Pollinations.ai API (reliable, fast)
 // Image Enhancement: Transformers.js with WebGPU (local super-resolution)
+// Background Removal: Transformers.js with WebGPU (local RMBG-1.4)
 
 import { pipeline, env } from '@huggingface/transformers';
 
@@ -10,6 +11,7 @@ env.useBrowserCache = true;
 
 let currentModel = null;
 let img2imgPipeline = null; // For local image enhancement (super-resolution)
+let bgRemovalPipeline = null; // For background removal
 let webGPUAvailable = false;
 
 // Message handler
@@ -25,6 +27,9 @@ self.onmessage = async (event) => {
       break;
     case 'CHECK_WEBGPU':
       await checkWebGPU();
+      break;
+    case 'REMOVE_BACKGROUND':
+      await removeBackground(payload);
       break;
     default:
       console.warn('Unknown message type:', type);
@@ -351,5 +356,118 @@ async function enhanceImageLocally(imageData) {
   } catch (error) {
     console.error('❌ Enhancement error:', error);
     throw error;
+  }
+}
+
+// ========== BACKGROUND REMOVAL (Local WebGPU) ==========
+async function removeBackground(payload) {
+  const { imageData, callbackId } = payload;
+
+  try {
+    console.log('✂️ Removing background locally with WebGPU...');
+
+    // Load pipeline if not already loaded
+    if (!bgRemovalPipeline) {
+      console.log('📦 Loading background removal model (RMBG-1.4)...');
+      
+      self.postMessage({
+        type: 'BG_REMOVAL_PROGRESS',
+        payload: { progress: 10, message: 'Loading model...' }
+      });
+
+      bgRemovalPipeline = await pipeline('image-segmentation', 'briaai/RMBG-1.4', {
+        device: webGPUAvailable ? 'webgpu' : 'wasm',
+        progress_callback: (progress) => {
+          if (progress.status === 'progress' || progress.status === 'download') {
+            const pct = 10 + Math.round((progress.progress || 0) * 0.5);
+            self.postMessage({
+              type: 'BG_REMOVAL_PROGRESS',
+              payload: { 
+                progress: pct,
+                message: `Downloading: ${Math.round(progress.progress || 0)}%`
+              }
+            });
+          }
+        }
+      });
+
+      console.log('✅ Background removal model loaded!');
+    }
+
+    self.postMessage({
+      type: 'BG_REMOVAL_PROGRESS',
+      payload: { progress: 60, message: 'Processing image...' }
+    });
+
+    // Convert image data to blob
+    let imageBlob;
+    if (imageData.startsWith('data:') || imageData.startsWith('blob:')) {
+      const response = await fetch(imageData);
+      imageBlob = await response.blob();
+    } else {
+      throw new Error('Unsupported image format');
+    }
+
+    // Remove background
+    const result = await bgRemovalPipeline(imageBlob);
+
+    self.postMessage({
+      type: 'BG_REMOVAL_PROGRESS',
+      payload: { progress: 90, message: 'Extracting result...' }
+    });
+
+    // Extract the mask/result
+    let imageUrl;
+    
+    // The result is typically an array of segments with masks
+    if (Array.isArray(result) && result.length > 0) {
+      // Get the main segment (usually the foreground)
+      const segment = result[0];
+      
+      if (segment.mask) {
+        // If we have a mask, we need to apply it to the original image
+        // For RMBG, it usually returns the segmented image directly
+        if (segment.mask instanceof Blob) {
+          imageUrl = URL.createObjectURL(segment.mask);
+        } else if (segment.mask.toBlob) {
+          const blob = await segment.mask.toBlob();
+          imageUrl = URL.createObjectURL(blob);
+        }
+      }
+    } else if (result instanceof Blob) {
+      imageUrl = URL.createObjectURL(result);
+    } else if (result?.toBlob) {
+      const blob = await result.toBlob();
+      imageUrl = URL.createObjectURL(blob);
+    }
+
+    if (!imageUrl) {
+      throw new Error('Could not extract result from background removal');
+    }
+
+    self.postMessage({
+      type: 'BG_REMOVAL_PROGRESS',
+      payload: { progress: 100, message: 'Done!' }
+    });
+
+    self.postMessage({
+      type: 'BG_REMOVAL_COMPLETE',
+      payload: { 
+        imageUrl,
+        callbackId
+      }
+    });
+
+    console.log('✅ Background removal complete!');
+
+  } catch (error) {
+    console.error('❌ Background removal error:', error);
+    self.postMessage({
+      type: 'BG_REMOVAL_ERROR',
+      payload: { 
+        error: error.message,
+        callbackId
+      }
+    });
   }
 }

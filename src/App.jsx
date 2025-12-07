@@ -333,6 +333,8 @@ function Flow() {
         };
       case 'imageDisplayNode':
         return { imageUrl: null, isLoading: false };
+      case 'backgroundRemovalNode':
+        return { inputImage: null, outputImage: null, imageName: null };
       default:
         return {};
     }

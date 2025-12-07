@@ -5,6 +5,7 @@ import ImageDisplayNode from './ImageDisplayNode';
 import Img2ImgNode from './Img2ImgNode';
 import SeedNode from './SeedNode';
 import ImageResizeNode from './ImageResizeNode';
+import BackgroundRemovalNode from './BackgroundRemovalNode';
 
 export const nodeTypes = {
   promptNode: PromptNode,
@@ -14,6 +15,7 @@ export const nodeTypes = {
   img2imgNode: Img2ImgNode,
   seedNode: SeedNode,
   imageResizeNode: ImageResizeNode,
+  backgroundRemovalNode: BackgroundRemovalNode,
 };
 
 export { 
@@ -23,5 +25,6 @@ export {
   ImageDisplayNode,
   Img2ImgNode,
   SeedNode,
-  ImageResizeNode
+  ImageResizeNode,
+  BackgroundRemovalNode
 };

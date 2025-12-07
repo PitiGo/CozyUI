@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Dices,
   Maximize,
+  Scissors,
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
@@ -73,6 +74,13 @@ const nodeCategories = [
         icon: Dices,
         color: 'cyan',
         description: 'Control randomness'
+      },
+      {
+        type: 'backgroundRemovalNode',
+        label: 'Remove Background',
+        icon: Scissors,
+        color: 'rose',
+        description: 'Remove image background (local)'
       },
       {
         type: 'imageResizeNode',

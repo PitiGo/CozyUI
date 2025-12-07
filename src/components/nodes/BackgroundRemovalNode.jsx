@@ -1,0 +1,249 @@
+import { memo, useCallback, useState, useRef } from 'react';
+import { Handle, Position, useReactFlow } from '@xyflow/react';
+import BaseNode from './BaseNode';
+import { Scissors, Upload, X, Loader2, Download } from 'lucide-react';
+import { useStore } from '../../store/useStore.jsx';
+
+const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
+  const { updateNodeData } = useReactFlow();
+  const { actions } = useStore();
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleImageUpload = useCallback((file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      updateNodeData(id, {
+        inputImage: e.target.result,
+        outputImage: null,
+        imageName: file.name
+      });
+    };
+    reader.readAsDataURL(file);
+  }, [id, updateNodeData]);
+
+  const handleFileSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (file) handleImageUpload(file);
+  }, [handleImageUpload]);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleImageUpload(file);
+  }, [handleImageUpload]);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleRemoveBackground = useCallback(async () => {
+    if (!data.inputImage || isProcessing) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      // Call the worker to remove background
+      actions.removeBackground(data.inputImage, (result) => {
+        if (result.error) {
+          console.error('Background removal failed:', result.error);
+          alert('Background removal failed: ' + result.error);
+        } else {
+          updateNodeData(id, {
+            outputImage: result.imageUrl
+          });
+        }
+        setIsProcessing(false);
+      });
+    } catch (err) {
+      console.error('Error:', err);
+      setIsProcessing(false);
+    }
+  }, [data.inputImage, isProcessing, actions, id, updateNodeData]);
+
+  const handleClear = useCallback(() => {
+    updateNodeData(id, {
+      inputImage: null,
+      outputImage: null,
+      imageName: null
+    });
+  }, [id, updateNodeData]);
+
+  const handleDownload = useCallback(() => {
+    if (!data.outputImage) return;
+    const link = document.createElement('a');
+    link.href = data.outputImage;
+    link.download = `no-bg-${Date.now()}.png`;
+    link.click();
+  }, [data.outputImage]);
+
+  return (
+    <BaseNode 
+      title="Remove BG" 
+      icon={<Scissors size={16} />}
+      color="rose"
+      selected={selected}
+      minWidth={200}
+      minHeight={150}
+    >
+      {/* Input Handle */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="image-in"
+        isConnectable={isConnectable}
+        className="!bg-rose-500 !border-rose-300"
+      />
+
+      <div className="space-y-2">
+        {/* Upload Area */}
+        {!data.inputImage ? (
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className={`
+              aspect-video w-full rounded-lg border-2 border-dashed
+              flex flex-col items-center justify-center cursor-pointer
+              transition-all
+              ${isDragging 
+                ? 'border-rose-500 bg-rose-500/10' 
+                : 'border-white/10 hover:border-rose-500/50 hover:bg-rose-500/5'}
+            `}
+          >
+            <Upload size={24} className="text-slate-500 mb-1" />
+            <span className="text-xs text-slate-500">Drop image or click</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* Before/After Preview */}
+            <div className="grid grid-cols-2 gap-1">
+              {/* Input */}
+              <div className="relative">
+                <div className="text-[9px] text-slate-500 mb-0.5">Input</div>
+                <div className="aspect-square rounded overflow-hidden border border-white/10 bg-black/30">
+                  <img 
+                    src={data.inputImage} 
+                    alt="Input" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+              
+              {/* Output */}
+              <div className="relative">
+                <div className="text-[9px] text-slate-500 mb-0.5">Output</div>
+                <div 
+                  className="aspect-square rounded overflow-hidden border border-white/10"
+                  style={{
+                    backgroundImage: 'linear-gradient(45deg, #1a1a2e 25%, transparent 25%), linear-gradient(-45deg, #1a1a2e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a1a2e 75%), linear-gradient(-45deg, transparent 75%, #1a1a2e 75%)',
+                    backgroundSize: '8px 8px',
+                    backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px'
+                  }}
+                >
+                  {data.outputImage ? (
+                    <img 
+                      src={data.outputImage} 
+                      alt="Output" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-[10px] text-slate-600">No output</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-1">
+              <button
+                onClick={handleRemoveBackground}
+                disabled={isProcessing}
+                className={`
+                  flex-1 py-1.5 rounded text-xs font-medium
+                  flex items-center justify-center gap-1
+                  transition-all
+                  ${isProcessing 
+                    ? 'bg-rose-500/20 text-rose-300 cursor-wait' 
+                    : 'bg-rose-500/30 border border-rose-500/50 text-rose-300 hover:bg-rose-500/40'}
+                `}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Scissors size={12} />
+                    Remove BG
+                  </>
+                )}
+              </button>
+              
+              {data.outputImage && (
+                <button
+                  onClick={handleDownload}
+                  className="p-1.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30"
+                  title="Download"
+                >
+                  <Download size={12} />
+                </button>
+              )}
+              
+              <button
+                onClick={handleClear}
+                className="p-1.5 rounded bg-black/20 border border-white/10 text-slate-400 hover:bg-white/10"
+                title="Clear"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+
+        {/* Info */}
+        <div className="text-[9px] text-slate-600 text-center">
+          🖥️ Local WebGPU • RMBG-1.4
+        </div>
+      </div>
+
+      {/* Output Handle */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="image-out"
+        isConnectable={isConnectable}
+        className="!bg-rose-500 !border-rose-300"
+      />
+    </BaseNode>
+  );
+};
+
+export default memo(BackgroundRemovalNode);
+
