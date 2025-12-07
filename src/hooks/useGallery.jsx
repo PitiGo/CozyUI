@@ -37,10 +37,12 @@ export function useGallery() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
+      console.log('📂 Loading gallery from localStorage:', saved ? 'Found data' : 'Empty');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Filter out any invalid entries
-        const validImages = parsed.filter(img => img && img.url && img.id);
+        // Filter out any invalid entries (must have url starting with data: for persistence)
+        const validImages = parsed.filter(img => img && img.url && img.id && img.url.startsWith('data:'));
+        console.log(`📂 Loaded ${validImages.length} valid images from gallery`);
         setImages(validImages);
       }
       isLoadedRef.current = true;
@@ -55,11 +57,14 @@ export function useGallery() {
     if (!isLoadedRef.current) return;
     
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(images));
+      const dataToSave = JSON.stringify(images);
+      console.log('💾 Saving gallery:', images.length, 'images,', Math.round(dataToSave.length / 1024), 'KB');
+      localStorage.setItem(STORAGE_KEY, dataToSave);
     } catch (error) {
       console.error('Error saving gallery:', error);
       // If storage is full, try removing oldest images
       if (error.name === 'QuotaExceededError') {
+        console.warn('⚠️ Storage full, reducing gallery size');
         const reduced = images.slice(0, Math.floor(images.length / 2));
         localStorage.setItem(STORAGE_KEY, JSON.stringify(reduced));
         setImages(reduced);
@@ -73,8 +78,17 @@ export function useGallery() {
     isAddingRef.current = true;
     
     try {
+      console.log('🖼️ Adding image to gallery, original URL type:', imageData.url?.substring(0, 30));
+      
       // Convert URL to base64 for persistence
       const base64Url = await urlToBase64(imageData.url);
+      
+      const isBase64 = base64Url.startsWith('data:');
+      console.log('🖼️ Converted to base64:', isBase64, 'Size:', Math.round(base64Url.length / 1024), 'KB');
+      
+      if (!isBase64) {
+        console.warn('⚠️ Failed to convert to base64, image will not persist!');
+      }
       
       const newImage = {
         id: generateId(),
@@ -90,6 +104,7 @@ export function useGallery() {
 
       setImages(prev => {
         const updated = [newImage, ...prev];
+        console.log('🖼️ Gallery now has', updated.length, 'images');
         // Keep only last MAX_IMAGES
         return updated.slice(0, MAX_IMAGES);
       });
