@@ -5,46 +5,47 @@ import { opfsService, browserCacheService } from '../services/opfsService.js';
 const StoreContext = createContext(null);
 
 // Available models list (exported for use in components)
-// 2025 Update: Local WebGPU generation with Janus multimodal models
+// Cloud API for text-to-image (reliable)
+// Local WebGPU for image enhancement (super-resolution)
 export const AVAILABLE_MODELS = [
-  // === LOCAL WEBGPU MODELS (2025 - Janus Multimodal) ===
-  {
-    id: 'janus-1.3b',
-    name: 'Janus 1.3B',
-    repo: 'onnx-community/Janus-1.3B-ONNX',
-    engine: 'local',
-    description: '🖥️ Best local quality',
-    size: '~800MB',
-    modelType: 'janus'
-  },
-  // === CLOUD API MODELS ===
+  // === CLOUD API MODELS (Text-to-Image) ===
   {
     id: 'flux',
-    name: 'Flux (Cloud)',
+    name: 'Flux',
     repo: 'flux',
     engine: 'api',
-    description: '☁️ Best quality'
+    description: '🎨 Best quality'
   },
   {
     id: 'turbo',
-    name: 'Turbo (Cloud)',
+    name: 'Turbo',
     repo: 'turbo',
     engine: 'api',
-    description: '☁️ Fastest API'
+    description: '⚡ Fastest'
   },
   {
     id: 'flux-realism',
-    name: 'Realism (Cloud)',
+    name: 'Realism',
     repo: 'flux-realism',
     engine: 'api',
-    description: '☁️ Photorealistic'
+    description: '📸 Photorealistic'
   },
   {
     id: 'flux-anime',
-    name: 'Anime (Cloud)',
+    name: 'Anime',
     repo: 'flux-anime',
     engine: 'api',
-    description: '☁️ Anime style'
+    description: '🎌 Anime style'
+  },
+  // === LOCAL (Coming Soon) ===
+  {
+    id: 'local-coming-soon',
+    name: 'Local WebGPU',
+    repo: '',
+    engine: 'local',
+    description: '🖥️ Coming when ONNX models are ready',
+    disabled: true,
+    comingSoon: true
   }
 ];
 

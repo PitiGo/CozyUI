@@ -7,8 +7,7 @@ import {
   Activity,
   CheckCircle2,
   AlertCircle,
-  Loader2,
-  Zap
+  Loader2
 } from 'lucide-react';
 
 const StatusBar = () => {
@@ -16,23 +15,20 @@ const StatusBar = () => {
   const { model, generation } = state;
   const webgpu = useWebGPU();
 
-  // Determine if current model is local or cloud
-  const isLocalModel = model.engine === 'local';
-
   const getModelStatus = () => {
     switch (model.status) {
       case 'loading':
         return (
           <span className="flex items-center gap-1.5 text-amber-400">
             <Loader2 size={12} className="animate-spin" />
-            {isLocalModel ? 'Downloading...' : 'Connecting...'}
+            Connecting...
           </span>
         );
       case 'loaded':
         return (
-          <span className={`flex items-center gap-1.5 ${isLocalModel ? 'text-emerald-400' : 'text-sky-400'}`}>
-            {isLocalModel ? <Zap size={12} /> : <Cloud size={12} />}
-            {model.id || 'Ready'} {isLocalModel ? '(Local)' : '(Cloud)'}
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <Cloud size={12} />
+            {model.id || 'Ready'}
           </span>
         );
       case 'error':
@@ -57,7 +53,7 @@ const StatusBar = () => {
         return (
           <span className="flex items-center gap-1.5 text-amber-400">
             <Activity size={12} className="animate-pulse" />
-            {generation.mode === 'local' ? '🖥️' : '☁️'} Generating ({generation.progress}%)
+            Generating ({generation.progress}%)
           </span>
         );
       case 'complete':
@@ -111,8 +107,7 @@ const StatusBar = () => {
 
       {/* Right side */}
       <div className="flex items-center gap-4 text-slate-500">
-        <span className="text-[10px]">2025 • Transformers.js v3</span>
-        <span>v0.2.0</span>
+        <span className="text-[10px]">Pollinations.ai + WebGPU Enhancement</span>
       </div>
     </div>
   );
