@@ -35,20 +35,54 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
     e.stopPropagation();
     setIsDragging(false);
     
+    // Check if it's from the gallery
+    const galleryData = e.dataTransfer.getData('application/gallery-image');
+    if (galleryData) {
+      try {
+        const imageData = JSON.parse(galleryData);
+        updateNodeData(id, {
+          inputImage: imageData.url,
+          outputImage: null, // Reset output when input changes
+          imageName: imageData.name || 'Gallery Image'
+        });
+        return;
+      } catch (err) {
+        console.error('Failed to parse gallery image data:', err);
+      }
+    }
+    
+    // Otherwise handle as file drop
     const file = e.dataTransfer.files?.[0];
     if (file) handleImageUpload(file);
-  }, [handleImageUpload]);
+  }, [handleImageUpload, id, updateNodeData]);
+
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('application/gallery-image') || 
+        e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    // Check if it's a gallery image or file
+    if (e.dataTransfer.types.includes('application/gallery-image') || 
+        e.dataTransfer.types.includes('Files')) {
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDragging(true);
+    }
   }, []);
 
   const handleDragLeave = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    // Only set dragging to false if we're leaving the drop zone
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDragging(false);
+    }
   }, []);
 
   const handleRemoveBackground = useCallback(async () => {
@@ -115,6 +149,7 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
           <div
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
+            onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             className={`
@@ -122,26 +157,43 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
               flex flex-col items-center justify-center cursor-pointer
               transition-all
               ${isDragging 
-                ? 'border-rose-500 bg-rose-500/10' 
+                ? 'border-rose-500 bg-rose-500/10 scale-[1.02]' 
                 : 'border-white/10 hover:border-rose-500/50 hover:bg-rose-500/5'}
             `}
           >
-            <Upload size={24} className="text-slate-500 mb-1" />
-            <span className="text-xs text-slate-500">Drop image or click</span>
+            <Upload size={24} className={`mb-1 transition-colors ${isDragging ? 'text-rose-400' : 'text-slate-500'}`} />
+            <span className={`text-xs transition-colors ${isDragging ? 'text-rose-400' : 'text-slate-500'}`}>
+              {isDragging ? 'Drop image here' : 'Drop image or click'}
+            </span>
           </div>
         ) : (
           <div className="space-y-2">
             {/* Before/After Preview */}
             <div className="grid grid-cols-2 gap-1">
               {/* Input */}
-              <div className="relative">
+              <div 
+                className="relative"
+                onDrop={handleDrop}
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+              >
                 <div className="text-[9px] text-slate-500 mb-0.5">Input</div>
-                <div className="aspect-square rounded overflow-hidden border border-white/10 bg-black/30">
+                <div className={`
+                  aspect-square rounded overflow-hidden border bg-black/30
+                  relative group
+                  ${isDragging ? 'border-rose-500 ring-2 ring-rose-500/50' : 'border-white/10'}
+                `}>
                   <img 
                     src={data.inputImage} 
                     alt="Input" 
                     className="w-full h-full object-cover"
                   />
+                  {isDragging && (
+                    <div className="absolute inset-0 bg-rose-500/20 flex items-center justify-center">
+                      <span className="text-xs text-rose-300 font-medium">Drop to replace</span>
+                    </div>
+                  )}
                 </div>
               </div>
               

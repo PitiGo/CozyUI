@@ -163,7 +163,7 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
                   
                   {/* Drag hint tooltip */}
                   <div className="absolute bottom-1 right-1 text-[9px] text-rose-400/80 bg-black/60 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                    Drag to Img2Img
+                    Drag to node
                   </div>
                 </div>
               ))}
