@@ -39,11 +39,11 @@ const initialNodes = [
     position: { x: 100, y: 420 },
     data: { 
       selectedModel: {
-        id: 'sd-turbo-small',
-        name: 'SD Turbo Small',
-        repo: 'Xenova/sd-turbo',
-        engine: 'local',
-        description: '⚡ Fast local, ~400MB'
+        id: 'flux',
+        name: 'Flux (Cloud)',
+        repo: 'flux',
+        engine: 'api',
+        description: '☁️ Best quality'
       },
       modelStatus: 'idle',
       loadProgress: 0
@@ -312,11 +312,11 @@ function Flow() {
       case 'modelLoaderNode':
         return { 
           selectedModel: {
-            id: 'sd-turbo-small',
-            name: 'SD Turbo Small',
-            repo: 'Xenova/sd-turbo',
-            engine: 'local',
-            description: '⚡ Fast local, ~400MB'
+            id: 'flux',
+            name: 'Flux (Cloud)',
+            repo: 'flux',
+            engine: 'api',
+            description: '☁️ Best quality'
           },
           modelStatus: 'idle',
           loadProgress: 0

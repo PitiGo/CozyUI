@@ -1,15 +1,22 @@
 // Web Worker for AI Inference
-// 2025 Update: Local WebGPU text-to-image generation now available!
+// 2025 Update: Local WebGPU with Janus multimodal models
 // Supports both local WebGPU models and cloud API fallback
 
-import { pipeline, env } from '@huggingface/transformers';
+import { 
+  pipeline, 
+  env,
+  AutoModelForVision2Seq,
+  AutoProcessor,
+  RawImage
+} from '@huggingface/transformers';
 
 // Configure Transformers.js for 2025
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 let currentModel = null;
-let textToImagePipeline = null; // For local text-to-image generation
+let janusModel = null; // For Janus multimodal generation
+let janusProcessor = null;
 let img2imgPipeline = null; // For local image enhancement
 let webGPUAvailable = false;
 
@@ -47,7 +54,7 @@ async function checkWebGPU() {
             supported: true, 
             info: `WebGPU: ${info.description || info.vendor || 'GPU Detected'}`,
             features: {
-              textToImage: 'local', // 2025: Now supports local!
+              textToImage: 'local',
               imageEnhancement: true
             }
           }
@@ -63,7 +70,7 @@ async function checkWebGPU() {
         supported: false, 
         reason: 'WebGPU not available',
         features: {
-          textToImage: 'api', // Fallback to API
+          textToImage: 'api',
           imageEnhancement: false
         }
       }
@@ -97,36 +104,43 @@ async function loadModel(payload) {
       payload: { modelId, progress: 10, message: 'Initializing...' }
     });
 
-    // ========== LOCAL MODEL LOADING (2025) ==========
+    // ========== LOCAL JANUS MODEL (2025) ==========
     if (engine === 'local' && webGPUAvailable) {
-      console.log('🖥️ Loading local WebGPU model...');
+      console.log('🖥️ Loading Janus multimodal model...');
       
       try {
         self.postMessage({
           type: 'MODEL_LOADING',
-          payload: { modelId, progress: 20, message: 'Loading text-to-image model (this may take a while)...' }
+          payload: { modelId, progress: 20, message: 'Loading Janus model (this may take a while)...' }
         });
 
-        // Load text-to-image pipeline with WebGPU
-        textToImagePipeline = await pipeline('text-to-image', modelRepo, {
+        // Load Janus model with WebGPU
+        janusModel = await AutoModelForVision2Seq.from_pretrained(modelRepo, {
           device: 'webgpu',
-          dtype: 'fp16', // Use fp16 for better performance
+          dtype: 'q4', // Quantized for web performance
           progress_callback: (progress) => {
             if (progress.status === 'progress' || progress.status === 'download') {
-              const pct = 20 + Math.round((progress.progress || 0) * 0.7);
+              const pct = 20 + Math.round((progress.progress || 0) * 0.5);
               self.postMessage({
                 type: 'MODEL_LOADING',
                 payload: { 
                   modelId, 
                   progress: pct,
-                  message: `Downloading: ${progress.file || modelRepo}...`
+                  message: `Downloading model: ${Math.round(progress.progress || 0)}%`
                 }
               });
             }
           }
         });
 
-        console.log('✅ Local text-to-image pipeline ready!');
+        self.postMessage({
+          type: 'MODEL_LOADING',
+          payload: { modelId, progress: 75, message: 'Loading processor...' }
+        });
+
+        janusProcessor = await AutoProcessor.from_pretrained(modelRepo);
+
+        console.log('✅ Janus model loaded!');
 
         self.postMessage({
           type: 'MODEL_LOADING',
@@ -149,8 +163,9 @@ async function loadModel(payload) {
         return;
 
       } catch (err) {
-        console.warn('⚠️ Local model failed, falling back to API:', err.message);
-        textToImagePipeline = null;
+        console.warn('⚠️ Local Janus model failed, falling back to API:', err.message);
+        janusModel = null;
+        janusProcessor = null;
         // Fall through to API mode
       }
     }
@@ -181,7 +196,7 @@ async function loadModel(payload) {
                 payload: { 
                   modelId, 
                   progress: pct,
-                  message: `Loading enhancer: ${progress.file || ''}...`
+                  message: `Loading enhancer: ${Math.round(progress.progress || 0)}%`
                 }
               });
             }
@@ -261,14 +276,14 @@ async function generate(payload) {
     }
   }
 
-  // ========== LOCAL TEXT-TO-IMAGE (2025) ==========
-  if (currentModel.engine === 'local' && textToImagePipeline) {
-    console.log('🖥️ Generating locally with WebGPU...');
+  // ========== LOCAL JANUS GENERATION (2025) ==========
+  if (currentModel.engine === 'local' && janusModel && janusProcessor) {
+    console.log('🖥️ Generating with Janus (local WebGPU)...');
     try {
-      await generateLocally(payload);
+      await generateWithJanus(payload);
       return;
     } catch (err) {
-      console.warn('⚠️ Local generation failed, trying API:', err.message);
+      console.warn('⚠️ Janus generation failed, trying API:', err.message);
     }
   }
 
@@ -277,79 +292,85 @@ async function generate(payload) {
   await generateViaAPI(payload);
 }
 
-// ========== LOCAL GENERATION (2025) ==========
-async function generateLocally(payload) {
+// ========== JANUS LOCAL GENERATION (2025) ==========
+async function generateWithJanus(payload) {
   const { 
     prompt, 
-    negativePrompt = '', 
-    steps = 4, // Turbo models work with 1-4 steps
-    guidanceScale = 1.0, // Turbo models use low guidance
-    width = 512,
-    height = 512,
+    width = 384,
+    height = 384,
     seed = -1
   } = payload;
 
-  if (!textToImagePipeline) {
-    throw new Error('Local pipeline not loaded');
+  if (!janusModel || !janusProcessor) {
+    throw new Error('Janus model not loaded');
   }
 
   try {
     const actualSeed = seed === -1 ? Math.floor(Math.random() * 2147483647) : seed;
     
-    console.log(`🖥️ Local: ${steps} steps | ${width}x${height} | Seed: ${actualSeed}`);
+    console.log(`🖥️ Janus: ${width}x${height} | Seed: ${actualSeed}`);
 
     self.postMessage({
       type: 'GENERATION_PROGRESS',
-      payload: { progress: 10, mode: 'local', message: 'Starting local generation...' }
+      payload: { progress: 10, mode: 'local', message: 'Preparing generation...' }
     });
 
-    // Generate with the local pipeline
-    const output = await textToImagePipeline(prompt, {
-      negative_prompt: negativePrompt,
-      num_inference_steps: steps,
-      guidance_scale: guidanceScale,
-      width: width,
-      height: height,
-      callback: (step, totalSteps) => {
-        const progress = Math.round((step / totalSteps) * 80) + 10;
-        self.postMessage({
-          type: 'GENERATION_PROGRESS',
-          payload: { 
-            progress, 
-            mode: 'local',
-            step: step,
-            totalSteps: totalSteps
-          }
-        });
+    // Prepare the generation prompt for Janus
+    const conversation = [
+      {
+        role: "user",
+        content: `Generate an image: ${prompt}`
       }
+    ];
+
+    // Apply chat template
+    const inputs = await janusProcessor(conversation);
+
+    self.postMessage({
+      type: 'GENERATION_PROGRESS',
+      payload: { progress: 30, mode: 'local', message: 'Generating...' }
+    });
+
+    // Generate with Janus
+    const outputs = await janusModel.generate({
+      ...inputs,
+      max_new_tokens: 512,
+      do_sample: true,
     });
 
     self.postMessage({
       type: 'GENERATION_PROGRESS',
-      payload: { progress: 90, mode: 'local', message: 'Processing result...' }
+      payload: { progress: 80, mode: 'local', message: 'Processing output...' }
     });
 
-    // Handle output - could be RawImage, Blob, or array
+    // Decode the output
+    const decoded = janusProcessor.batch_decode(outputs, { skip_special_tokens: true });
+    
+    // Extract image from output (Janus outputs base64 or image tokens)
     let imageUrl;
-    if (output?.images?.[0]) {
-      const img = output.images[0];
-      if (img.toBlob) {
-        const blob = await img.toBlob();
-        imageUrl = URL.createObjectURL(blob);
-      } else if (img instanceof Blob) {
-        imageUrl = URL.createObjectURL(img);
-      } else if (typeof img === 'string') {
-        imageUrl = img;
+    
+    // Check if output contains image data
+    if (decoded[0] && decoded[0].includes('data:image')) {
+      // Extract base64 image
+      const match = decoded[0].match(/data:image\/[^;]+;base64,[^"'\s]+/);
+      if (match) {
+        imageUrl = match[0];
       }
-    } else if (output instanceof Blob) {
-      imageUrl = URL.createObjectURL(output);
-    } else if (output?.toBlob) {
-      const blob = await output.toBlob();
-      imageUrl = URL.createObjectURL(blob);
     }
 
     if (!imageUrl) {
-      throw new Error('Could not extract image from output');
+      // Fallback: Try to extract image from model output directly
+      if (outputs.images && outputs.images.length > 0) {
+        const img = outputs.images[0];
+        if (img.toBlob) {
+          const blob = await img.toBlob();
+          imageUrl = URL.createObjectURL(blob);
+        }
+      }
+    }
+
+    if (!imageUrl) {
+      throw new Error('Could not extract image from Janus output');
     }
 
     self.postMessage({
@@ -364,14 +385,14 @@ async function generateLocally(payload) {
         mode: 'local',
         model: currentModel.id,
         seed: actualSeed,
-        info: '🖥️ Generated locally with WebGPU!'
+        info: '🖥️ Generated locally with Janus + WebGPU!'
       }
     });
 
-    console.log('✅ Local generation complete!');
+    console.log('✅ Janus generation complete!');
     
   } catch (error) {
-    console.error('❌ Local generation error:', error);
+    console.error('❌ Janus generation error:', error);
     throw error;
   }
 }

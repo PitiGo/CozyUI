@@ -5,26 +5,17 @@ import { opfsService, browserCacheService } from '../services/opfsService.js';
 const StoreContext = createContext(null);
 
 // Available models list (exported for use in components)
-// 2025 Update: Local WebGPU generation now available with optimized models!
+// 2025 Update: Local WebGPU generation with Janus multimodal models
 export const AVAILABLE_MODELS = [
-  // === LOCAL WEBGPU MODELS (2025) ===
+  // === LOCAL WEBGPU MODELS (2025 - Janus Multimodal) ===
   {
-    id: 'sd-turbo-q8',
-    name: 'SD Turbo (Local)',
-    repo: 'Xenova/sdxl-turbo',
+    id: 'janus-1.3b',
+    name: 'Janus 1.3B',
+    repo: 'onnx-community/Janus-1.3B-ONNX',
     engine: 'local',
-    description: '🖥️ 1-4 steps, ~1.2GB',
-    size: '~1.2GB',
-    capabilities: { textToImage: 'local' }
-  },
-  {
-    id: 'sd-turbo-small',
-    name: 'SD Turbo Small',
-    repo: 'Xenova/sd-turbo',
-    engine: 'local',
-    description: '⚡ Fast local, ~400MB',
-    size: '~400MB',
-    capabilities: { textToImage: 'local' }
+    description: '🖥️ Best local quality',
+    size: '~800MB',
+    modelType: 'janus'
   },
   // === CLOUD API MODELS ===
   {
