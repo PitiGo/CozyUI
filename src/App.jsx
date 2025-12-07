@@ -177,26 +177,33 @@ function Flow() {
     );
   }, [state.generation.status, state.generation.progress, setNodes]);
 
-  // Update output node and gallery when image is generated
+  // Update inference node with generated image and propagate through connections
   useEffect(() => {
     if (!state.generation.imageUrl || state.generation.status !== 'complete') return;
     if (prevImageUrl.current === state.generation.imageUrl) return;
     prevImageUrl.current = state.generation.imageUrl;
     
-    // Update output node
-    setNodes((nds) => nds.map((node) => {
-      if (node.type === 'imageDisplayNode') {
-        return { ...node, data: { ...node.data, imageUrl: state.generation.imageUrl, isLoading: false } };
-      }
-      return node;
-    }));
-
-    // Add to gallery (async - get node data first)
+    // Update inference node with the generated image (so it can output to connected nodes)
     setNodes((nds) => {
-      const promptNode = nds.find(n => n.type === 'promptNode');
       const inferenceNode = nds.find(n => n.type === 'inferenceNode');
+      const promptNode = nds.find(n => n.type === 'promptNode');
       
-      // Call addImage async (don't await, just fire and forget)
+      // Store image in inference node data for propagation
+      const updatedNodes = nds.map((node) => {
+        if (node.type === 'inferenceNode') {
+          return { 
+            ...node, 
+            data: { 
+              ...node.data, 
+              generatedImageUrl: state.generation.imageUrl,
+              isGenerating: false
+            } 
+          };
+        }
+        return node;
+      });
+
+      // Add to gallery
       addImage({
         url: state.generation.imageUrl,
         prompt: promptNode?.data?.prompt || '',
@@ -205,8 +212,8 @@ function Flow() {
         height: inferenceNode?.data?.height || 512,
         seed: inferenceNode?.data?.seed,
       });
-      
-      return nds; // Return unchanged
+
+      return updatedNodes;
     });
 
     toast.success('Image generated! ✨');
@@ -240,8 +247,9 @@ function Flow() {
   const outputsKey = useMemo(() => {
     return nodes
       .filter(n => (n.type === 'backgroundRemovalNode' && n.data?.outputImage) || 
-                   (n.type === 'img2imgNode' && n.data?.imageUrl))
-      .map(n => `${n.id}:${n.data?.outputImage || n.data?.imageUrl || ''}`)
+                   (n.type === 'img2imgNode' && n.data?.imageUrl) ||
+                   (n.type === 'inferenceNode' && n.data?.generatedImageUrl))
+      .map(n => `${n.id}:${n.data?.outputImage || n.data?.imageUrl || n.data?.generatedImageUrl || ''}`)
       .join('|');
   }, [nodes]);
 
@@ -256,6 +264,9 @@ function Flow() {
         currentOutputs[node.id] = { type: 'bg', value: node.data.outputImage };
       } else if (node.type === 'img2imgNode' && node.data?.imageUrl) {
         currentOutputs[node.id] = { type: 'img', value: node.data.imageUrl };
+      } else if (node.type === 'inferenceNode' && node.data?.generatedImageUrl) {
+        currentOutputs[node.id] = { type: 'img', value: node.data.generatedImageUrl };
+        console.log('📤 InferenceNode output detected:', node.data.generatedImageUrl.substring(0, 50));
       }
     });
 
@@ -305,6 +316,7 @@ function Flow() {
             };
           }
           if (node.type === 'backgroundRemovalNode' && updates.imageUrl) {
+            console.log('📥 BackgroundRemovalNode receiving image from connection');
             return {
               ...node,
               data: {

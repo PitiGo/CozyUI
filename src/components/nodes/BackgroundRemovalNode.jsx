@@ -25,8 +25,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
         outputImage: null,
         imageName: file.name
       });
-      // Reset flag after a short delay
-      setTimeout(() => { isManualUploadRef.current = false; }, 100);
+      // Reset flag after processing would have started
+      setTimeout(() => { isManualUploadRef.current = false; }, 500);
     };
     reader.readAsDataURL(file);
   }, [id, updateNodeData]);
@@ -53,7 +53,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
           outputImage: null, // Reset output when input changes
           imageName: imageData.name || 'Gallery Image'
         });
-        setTimeout(() => { isManualUploadRef.current = false; }, 100);
+        // Reset flag after processing would have started
+        setTimeout(() => { isManualUploadRef.current = false; }, 500);
         return;
       } catch (err) {
         console.error('Failed to parse gallery image data:', err);
@@ -125,24 +126,41 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
     // Check if there's an incoming connection
     const hasIncomingConnection = edges.some(e => e.target === id && e.targetHandle === 'image-in');
     
+    // If there's a connection and inputImage changed, it's from a connection (not manual)
+    if (hasIncomingConnection && data.inputImage && data.inputImage !== lastProcessedInputRef.current) {
+      // Reset manual flag since this is from a connection
+      isManualUploadRef.current = false;
+    }
+    
     // Only auto-process if:
     // 1. There's an incoming connection
     // 2. inputImage exists and changed
-    // 3. It's not a manual upload (check with a small delay to avoid race conditions)
-    // 4. Not already processing
+    // 3. Not already processing
     if (hasIncomingConnection && 
         data.inputImage && 
         data.inputImage !== lastProcessedInputRef.current &&
         !isProcessing) {
       
-      // Small delay to ensure manual upload flag is set if it's a manual action
+      const currentInputImage = data.inputImage; // Capture current value
+      
+      // Use a small delay to ensure state is stable
       const timeoutId = setTimeout(() => {
-        if (!isManualUploadRef.current) {
-          console.log('🔄 Auto-processing background removal from connected node');
-          lastProcessedInputRef.current = data.inputImage;
-          handleRemoveBackground(true);
+        // Double-check manual flag (should be false for connections)
+        if (isManualUploadRef.current) {
+          console.log('⏭️ Skipping auto-process (manual upload detected)');
+          return;
         }
-      }, 50);
+        
+        // Verify inputImage still exists and matches what we captured
+        if (!data.inputImage || data.inputImage !== currentInputImage) {
+          // Input changed during delay, skip
+          return;
+        }
+        
+        console.log('🔄 Auto-processing background removal from connected node');
+        lastProcessedInputRef.current = currentInputImage;
+        handleRemoveBackground(true);
+      }, 100);
       
       return () => clearTimeout(timeoutId);
     }
