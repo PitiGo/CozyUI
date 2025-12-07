@@ -1,19 +1,23 @@
-import { memo, useCallback, useState, useRef } from 'react';
-import { Handle, Position, useReactFlow } from '@xyflow/react';
+import { memo, useCallback, useState, useRef, useEffect } from 'react';
+import { Handle, Position, useReactFlow, useEdges } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { Scissors, Upload, X, Loader2, Download } from 'lucide-react';
 import { useStore } from '../../store/useStore.jsx';
 
 const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
   const { updateNodeData } = useReactFlow();
+  const edges = useEdges();
   const { actions } = useStore();
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const lastProcessedInputRef = useRef(null);
+  const isManualUploadRef = useRef(false);
 
   const handleImageUpload = useCallback((file) => {
     if (!file || !file.type.startsWith('image/')) return;
 
+    isManualUploadRef.current = true;
     const reader = new FileReader();
     reader.onload = (e) => {
       updateNodeData(id, {
@@ -21,6 +25,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
         outputImage: null,
         imageName: file.name
       });
+      // Reset flag after a short delay
+      setTimeout(() => { isManualUploadRef.current = false; }, 100);
     };
     reader.readAsDataURL(file);
   }, [id, updateNodeData]);
@@ -35,6 +41,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
     e.stopPropagation();
     setIsDragging(false);
     
+    isManualUploadRef.current = true;
+    
     // Check if it's from the gallery
     const galleryData = e.dataTransfer.getData('application/gallery-image');
     if (galleryData) {
@@ -45,6 +53,7 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
           outputImage: null, // Reset output when input changes
           imageName: imageData.name || 'Gallery Image'
         });
+        setTimeout(() => { isManualUploadRef.current = false; }, 100);
         return;
       } catch (err) {
         console.error('Failed to parse gallery image data:', err);
@@ -85,7 +94,7 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
     }
   }, []);
 
-  const handleRemoveBackground = useCallback(async () => {
+  const handleRemoveBackground = useCallback(async (autoProcess = false) => {
     if (!data.inputImage || isProcessing) return;
     
     setIsProcessing(true);
@@ -95,7 +104,9 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
       actions.removeBackground(data.inputImage, (result) => {
         if (result.error) {
           console.error('Background removal failed:', result.error);
-          alert('Background removal failed: ' + result.error);
+          if (!autoProcess) {
+            alert('Background removal failed: ' + result.error);
+          }
         } else {
           updateNodeData(id, {
             outputImage: result.imageUrl
@@ -109,7 +120,36 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
     }
   }, [data.inputImage, isProcessing, actions, id, updateNodeData]);
 
+  // Auto-process when inputImage changes from a connection
+  useEffect(() => {
+    // Check if there's an incoming connection
+    const hasIncomingConnection = edges.some(e => e.target === id && e.targetHandle === 'image-in');
+    
+    // Only auto-process if:
+    // 1. There's an incoming connection
+    // 2. inputImage exists and changed
+    // 3. It's not a manual upload (check with a small delay to avoid race conditions)
+    // 4. Not already processing
+    if (hasIncomingConnection && 
+        data.inputImage && 
+        data.inputImage !== lastProcessedInputRef.current &&
+        !isProcessing) {
+      
+      // Small delay to ensure manual upload flag is set if it's a manual action
+      const timeoutId = setTimeout(() => {
+        if (!isManualUploadRef.current) {
+          console.log('🔄 Auto-processing background removal from connected node');
+          lastProcessedInputRef.current = data.inputImage;
+          handleRemoveBackground(true);
+        }
+      }, 50);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [data.inputImage, edges, id, isProcessing, handleRemoveBackground]);
+
   const handleClear = useCallback(() => {
+    lastProcessedInputRef.current = null;
     updateNodeData(id, {
       inputImage: null,
       outputImage: null,
