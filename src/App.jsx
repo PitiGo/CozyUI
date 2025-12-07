@@ -36,14 +36,14 @@ const initialNodes = [
   {
     id: 'model-1',
     type: 'modelLoaderNode',
-    position: { x: 100, y: 450 },
+    position: { x: 100, y: 420 },
     data: { 
       selectedModel: {
-        id: 'sd-turbo',
-        name: 'SD Turbo',
-        repo: 'Xenova/sd-turbo',
-        size: '~1.5GB',
-        description: 'Fast generation, fewer steps'
+        id: 'flux',
+        name: 'Flux',
+        repo: 'flux',
+        engine: 'api',
+        description: '🎨 Best quality'
       },
       modelStatus: 'idle',
       loadProgress: 0
@@ -131,18 +131,27 @@ function Flow() {
   const toast = useToast();
   const { exportWorkflow, loadFromFile } = useWorkflow();
 
-  // Sync store state with node data
+  // Refs to track previous values and avoid infinite loops
+  const prevModelStatus = useRef(state.model.status);
+  const prevModelProgress = useRef(state.model.progress);
+  const prevGenStatus = useRef(state.generation.status);
+  const prevImageUrl = useRef(state.generation.imageUrl);
+  const prevModelStatusForToast = useRef(null);
+  const prevGenError = useRef(null);
+
+  // Sync store state with model loader node
   useEffect(() => {
+    if (prevModelStatus.current === state.model.status && 
+        prevModelProgress.current === state.model.progress) return;
+    prevModelStatus.current = state.model.status;
+    prevModelProgress.current = state.model.progress;
+    
     setNodes((nds) =>
       nds.map((node) => {
         if (node.type === 'modelLoaderNode') {
           return {
             ...node,
-            data: {
-              ...node.data,
-              modelStatus: state.model.status,
-              loadProgress: state.model.progress,
-            },
+            data: { ...node.data, modelStatus: state.model.status, loadProgress: state.model.progress },
           };
         }
         return node;
@@ -152,16 +161,15 @@ function Flow() {
 
   // Update inference node when generation status changes
   useEffect(() => {
+    if (prevGenStatus.current === state.generation.status) return;
+    prevGenStatus.current = state.generation.status;
+    
     setNodes((nds) =>
       nds.map((node) => {
         if (node.type === 'inferenceNode') {
           return {
             ...node,
-            data: {
-              ...node.data,
-              isGenerating: state.generation.status === 'generating',
-              progress: state.generation.progress,
-            },
+            data: { ...node.data, isGenerating: state.generation.status === 'generating', progress: state.generation.progress },
           };
         }
         return node;
@@ -171,28 +179,24 @@ function Flow() {
 
   // Update output node and gallery when image is generated
   useEffect(() => {
-    if (state.generation.imageUrl && state.generation.status === 'complete') {
-      // Update output node
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.type === 'imageDisplayNode') {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                imageUrl: state.generation.imageUrl,
-                isLoading: false,
-              },
-            };
-          }
-          return node;
-        })
-      );
+    if (!state.generation.imageUrl || state.generation.status !== 'complete') return;
+    if (prevImageUrl.current === state.generation.imageUrl) return;
+    prevImageUrl.current = state.generation.imageUrl;
+    
+    // Update output node
+    setNodes((nds) => nds.map((node) => {
+      if (node.type === 'imageDisplayNode') {
+        return { ...node, data: { ...node.data, imageUrl: state.generation.imageUrl, isLoading: false } };
+      }
+      return node;
+    }));
 
-      // Add to gallery
-      const promptNode = nodes.find(n => n.type === 'promptNode');
-      const inferenceNode = nodes.find(n => n.type === 'inferenceNode');
+    // Add to gallery (async - get node data first)
+    setNodes((nds) => {
+      const promptNode = nds.find(n => n.type === 'promptNode');
+      const inferenceNode = nds.find(n => n.type === 'inferenceNode');
       
+      // Call addImage async (don't await, just fire and forget)
       addImage({
         url: state.generation.imageUrl,
         prompt: promptNode?.data?.prompt || '',
@@ -201,27 +205,33 @@ function Flow() {
         height: inferenceNode?.data?.height || 512,
         seed: inferenceNode?.data?.seed,
       });
+      
+      return nds; // Return unchanged
+    });
 
-      // Show success toast
-      toast.success('Image generated successfully!');
-    }
-  }, [state.generation.imageUrl, state.generation.status]);
+    toast.success('Image generated! ✨');
+  }, [state.generation.imageUrl, state.generation.status, setNodes, addImage, toast]);
 
   // Handle generation errors
   useEffect(() => {
-    if (state.generation.status === 'error' && state.generation.error) {
-      toast.error(`Generation failed: ${state.generation.error}`);
+    if (state.generation.status === 'error' && state.generation.error && prevGenError.current !== state.generation.error) {
+      prevGenError.current = state.generation.error;
+      toast.error(`Error: ${state.generation.error}`);
     }
-  }, [state.generation.status, state.generation.error]);
+  }, [state.generation.status, state.generation.error, toast]);
 
-  // Handle model loaded
+  // Handle model/API ready - only show toast on status change
   useEffect(() => {
-    if (state.model.status === 'loaded') {
-      toast.success('Model loaded successfully!');
+    if (prevModelStatusForToast.current === state.model.status) return;
+    const wasLoading = prevModelStatusForToast.current === 'loading';
+    prevModelStatusForToast.current = state.model.status;
+    
+    if (state.model.status === 'loaded' && wasLoading) {
+      toast.success('Ready! ✓');
     } else if (state.model.status === 'error') {
-      toast.error(`Model failed to load: ${state.model.error}`);
+      toast.error(`Failed: ${state.model.error}`);
     }
-  }, [state.model.status]);
+  }, [state.model.status, state.model.error, toast]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -302,11 +312,11 @@ function Flow() {
       case 'modelLoaderNode':
         return { 
           selectedModel: {
-            id: 'sd-turbo',
-            name: 'SD Turbo',
-            repo: 'Xenova/sd-turbo',
-            size: '~1.5GB',
-            description: 'Fast generation, fewer steps'
+            id: 'flux',
+            name: 'Flux',
+            repo: 'flux',
+            engine: 'api',
+            description: '🎨 Best quality'
           },
           modelStatus: 'idle',
           loadProgress: 0
@@ -343,16 +353,21 @@ function Flow() {
       return;
     }
 
-    // Load model if needed
-    if (state.model.status !== 'loaded') {
+    // Load/configure model if needed
+    if (state.model.status !== 'loaded' || state.model.id !== modelNode.data.selectedModel.id) {
       const selectedModel = modelNode.data.selectedModel;
-      actions.loadModel(selectedModel.id, selectedModel.repo);
-      toast.info('Loading model...');
+      actions.loadModel(selectedModel.id, selectedModel.repo, selectedModel.engine || 'api');
+      
+      if (selectedModel.engine === 'mediapipe') {
+        toast.info('Loading local model (this may take a while)...');
+      } else {
+        toast.info('Connecting to API...');
+      }
       return;
     }
 
-    // Generate
-    toast.info('Starting generation...');
+    // Generate via API
+    toast.info('Sending request to API...');
     actions.generate({
       prompt: promptNode.data.prompt,
       negativePrompt: promptNode.data.negativePrompt,
@@ -429,6 +444,8 @@ function Flow() {
           onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           fitView
+          minZoom={0.1}
+          maxZoom={2}
           proOptions={{ hideAttribution: true }}
           className="bg-[#0a0a0f]"
         >

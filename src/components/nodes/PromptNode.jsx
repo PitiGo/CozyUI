@@ -3,7 +3,7 @@ import { Handle, Position, useReactFlow } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { Sparkles } from 'lucide-react';
 
-const PromptNode = ({ id, data, isConnectable }) => {
+const PromptNode = ({ id, data, isConnectable, selected }) => {
   const { updateNodeData } = useReactFlow();
 
   const handlePromptChange = useCallback((e) => {
@@ -17,8 +17,10 @@ const PromptNode = ({ id, data, isConnectable }) => {
   return (
     <BaseNode 
       title="Text Prompt" 
-      icon={<Sparkles size={18} />}
+      icon={<Sparkles size={16} />}
       color="indigo"
+      selected={selected}
+      minWidth={220}
     >
       <div className="space-y-4">
         {/* Positive Prompt */}

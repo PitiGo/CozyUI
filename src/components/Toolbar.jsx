@@ -10,10 +10,12 @@ import {
   Loader2,
   LayoutTemplate,
   ChevronDown,
-  X
+  X,
+  HardDrive
 } from 'lucide-react';
 import { useStore } from '../store/useStore.jsx';
 import { presetWorkflows } from '../hooks/useWorkflow.jsx';
+import StorageManager from './StorageManager.jsx';
 
 const Toolbar = ({ 
   onRunWorkflow, 
@@ -23,11 +25,13 @@ const Toolbar = ({
   onLoadPreset
 }) => {
   const { state } = useStore();
-  const { model, generation } = state;
+  const { model, generation, system } = state;
   const [showPresets, setShowPresets] = useState(false);
+  const [showStorageManager, setShowStorageManager] = useState(false);
   
   const isModelLoaded = model.status === 'loaded';
   const isGenerating = generation.status === 'generating';
+  const hasCachedModels = system.cachedModels.length > 0;
 
   return (
     <>
@@ -125,6 +129,22 @@ const Toolbar = ({
           {/* Divider */}
           <div className="w-px h-6 bg-white/10" />
 
+          {/* Storage Manager */}
+          <button
+            onClick={() => setShowStorageManager(true)}
+            className={`p-2 rounded-full transition-colors relative ${
+              hasCachedModels 
+                ? 'text-emerald-400 hover:bg-emerald-500/20' 
+                : 'text-slate-400 hover:bg-white/10 hover:text-white'
+            }`}
+            title="Storage Manager"
+          >
+            <HardDrive size={18} />
+            {hasCachedModels && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[#12121a]" />
+            )}
+          </button>
+
           {/* Settings */}
           <button
             className="p-2 rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
@@ -185,6 +205,12 @@ const Toolbar = ({
           </div>
         </div>
       )}
+
+      {/* Storage Manager Modal */}
+      <StorageManager 
+        isOpen={showStorageManager} 
+        onClose={() => setShowStorageManager(false)} 
+      />
     </>
   );
 };

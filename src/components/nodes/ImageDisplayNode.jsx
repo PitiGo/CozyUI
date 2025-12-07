@@ -3,7 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { Image, Download, Maximize2 } from 'lucide-react';
 
-const ImageDisplayNode = ({ id, data, isConnectable }) => {
+const ImageDisplayNode = ({ id, data, isConnectable, selected }) => {
   const imageUrl = data.imageUrl;
   const isLoading = data.isLoading || false;
 
@@ -22,9 +22,11 @@ const ImageDisplayNode = ({ id, data, isConnectable }) => {
 
   return (
     <BaseNode 
-      title="Image Output" 
-      icon={<Image size={18} />}
+      title="Output" 
+      icon={<Image size={16} />}
       color="emerald"
+      selected={selected}
+      minWidth={200}
     >
       {/* Input Handle */}
       <Handle

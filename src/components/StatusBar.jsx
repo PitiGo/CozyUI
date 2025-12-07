@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore.jsx';
 import { useWebGPU } from '../hooks/useWebGPU.jsx';
 import { 
   Cpu, 
-  HardDrive, 
+  Cloud, 
   Activity,
   CheckCircle2,
   AlertCircle,
@@ -21,27 +21,27 @@ const StatusBar = () => {
         return (
           <span className="flex items-center gap-1.5 text-amber-400">
             <Loader2 size={12} className="animate-spin" />
-            Loading model ({model.progress}%)
+            Connecting...
           </span>
         );
       case 'loaded':
         return (
           <span className="flex items-center gap-1.5 text-emerald-400">
-            <CheckCircle2 size={12} />
-            Model loaded
+            <Cloud size={12} />
+            {model.id || 'Ready'}
           </span>
         );
       case 'error':
         return (
           <span className="flex items-center gap-1.5 text-rose-400">
             <AlertCircle size={12} />
-            Load failed
+            Error
           </span>
         );
       default:
         return (
           <span className="text-slate-500">
-            No model loaded
+            No model
           </span>
         );
     }
@@ -60,14 +60,14 @@ const StatusBar = () => {
         return (
           <span className="flex items-center gap-1.5 text-emerald-400">
             <CheckCircle2 size={12} />
-            Complete
+            Done
           </span>
         );
       case 'error':
         return (
           <span className="flex items-center gap-1.5 text-rose-400">
             <AlertCircle size={12} />
-            Error
+            Failed
           </span>
         );
       default:
@@ -87,16 +87,15 @@ const StatusBar = () => {
       {/* Left side */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
-          <Cpu size={12} className={webgpu.supported ? 'text-emerald-400' : 'text-rose-400'} />
+          <Cpu size={12} className={webgpu.supported ? 'text-emerald-400' : 'text-slate-500'} />
           <span className="text-slate-400">
-            {webgpu.supported ? 'WebGPU' : 'CPU Fallback'}
+            {webgpu.supported ? 'WebGPU' : 'CPU'}
           </span>
         </div>
         
         <div className="w-px h-4 bg-white/10" />
         
         <div className="flex items-center gap-1.5">
-          <HardDrive size={12} className="text-slate-400" />
           {getModelStatus()}
         </div>
       </div>
@@ -108,11 +107,11 @@ const StatusBar = () => {
 
       {/* Right side */}
       <div className="flex items-center gap-4 text-slate-500">
-        <span>v0.1.0 MVP</span>
+        <span>Pollinations.ai</span>
+        <span>v0.1.0</span>
       </div>
     </div>
   );
 };
 
 export default memo(StatusBar);
-

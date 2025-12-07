@@ -3,7 +3,7 @@ import { Handle, Position, useReactFlow } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { ImagePlus, Upload, X, Sliders } from 'lucide-react';
 
-const Img2ImgNode = ({ id, data, isConnectable }) => {
+const Img2ImgNode = ({ id, data, isConnectable, selected }) => {
   const { updateNodeData } = useReactFlow();
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -103,9 +103,11 @@ const Img2ImgNode = ({ id, data, isConnectable }) => {
 
   return (
     <BaseNode 
-      title="Image to Image" 
-      icon={<ImagePlus size={18} />}
+      title="Img2Img" 
+      icon={<ImagePlus size={16} />}
       color="rose"
+      selected={selected}
+      minWidth={200}
     >
       {/* Input Handle - for prompt */}
       <Handle

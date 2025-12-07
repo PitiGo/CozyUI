@@ -4,7 +4,7 @@ import BaseNode from './BaseNode';
 import { Cpu, Play, Loader2 } from 'lucide-react';
 import { useStore } from '../../store/useStore.jsx';
 
-const InferenceNode = ({ id, data, isConnectable }) => {
+const InferenceNode = ({ id, data, isConnectable, selected }) => {
   const { updateNodeData } = useReactFlow();
   const nodes = useNodes();
   const edges = useEdges();
@@ -16,8 +16,7 @@ const InferenceNode = ({ id, data, isConnectable }) => {
 
   const handleGenerate = useCallback((e) => {
     e.stopPropagation(); // Prevent React Flow from intercepting the click
-    console.log('🚀 Generate clicked!');
-    console.log('Nodes:', nodes);
+    console.log('🚀 Generate clicked! (will use Pollinations.ai API)');
     
     // Find connected nodes via edges
     const promptEdge = edges.find(e => e.target === id && e.targetHandle === 'prompt-in');
@@ -66,24 +65,27 @@ const InferenceNode = ({ id, data, isConnectable }) => {
       }
     }
 
-    // First load the model if not loaded
+    // Configure model if needed
     if (state.model.status !== 'loaded' || state.model.id !== selectedModel.id) {
-      console.log('Loading model:', selectedModel.repo);
+      console.log('🌐 Configuring:', selectedModel.name);
       actions.loadModel(selectedModel.id, selectedModel.repo);
     }
     
-    // Generate - the store will handle waiting for model load
-    console.log('Starting generation with prompt:', prompt);
+    // Generate via API
+    console.log('🎨 Generating image...');
+    console.log('   Model:', selectedModel.name);
+    console.log('   Prompt:', prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''));
+    
     actions.generate({
       prompt: prompt,
-      negativePrompt: promptNode.data?.negativePrompt || '',
+      negativePrompt: promptNodeByType.data?.negativePrompt || '',
       steps: data.steps || 4,
       guidanceScale: data.guidanceScale || 1,
       width: data.width || 512,
       height: data.height || 512,
       seed: data.seed || -1,
-      sourceImage: sourceImage, // Pass image for img2img
-      strength: strength, // Pass strength for img2img
+      sourceImage: sourceImage,
+      strength: strength,
     });
   }, [nodes, edges, data, state.model, actions]);
 
@@ -97,10 +99,12 @@ const InferenceNode = ({ id, data, isConnectable }) => {
 
   return (
     <BaseNode 
-      title="Run Inference" 
-      icon={<Cpu size={18} />}
+      title="Generate" 
+      icon={<Cpu size={16} />}
       color="amber"
       status={isGenerating ? 'loading' : 'idle'}
+      selected={selected}
+      minWidth={200}
     >
       {/* Input Handles */}
       <Handle

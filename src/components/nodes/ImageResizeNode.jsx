@@ -12,7 +12,7 @@ const PRESET_SIZES = [
   { label: '768×512', width: 768, height: 512 },
 ];
 
-const ImageResizeNode = ({ id, data, isConnectable }) => {
+const ImageResizeNode = ({ id, data, isConnectable, selected }) => {
   const { updateNodeData } = useReactFlow();
 
   const width = data.width ?? 512;
@@ -57,9 +57,11 @@ const ImageResizeNode = ({ id, data, isConnectable }) => {
 
   return (
     <BaseNode 
-      title="Image Resize" 
-      icon={<Maximize size={18} />}
+      title="Resize" 
+      icon={<Maximize size={16} />}
       color="sky"
+      selected={selected}
+      minWidth={180}
     >
       {/* Input Handle */}
       <Handle

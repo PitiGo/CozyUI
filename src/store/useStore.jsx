@@ -1,6 +1,53 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
+import { modelDownloader } from '../services/modelDownloader.js';
+import { opfsService, browserCacheService } from '../services/opfsService.js';
 
 const StoreContext = createContext(null);
+
+// Available models list (exported for use in components)
+// Text-to-Image uses Pollinations.ai API (reliable, fast)
+// Local generation will be enabled when Transformers.js v3 supports it
+export const AVAILABLE_MODELS = [
+  // Cloud API Models
+  {
+    id: 'flux',
+    name: 'Flux',
+    repo: 'flux',
+    engine: 'api',
+    description: '🎨 Best quality'
+  },
+  {
+    id: 'turbo',
+    name: 'Turbo',
+    repo: 'turbo',
+    engine: 'api',
+    description: '⚡ Fastest'
+  },
+  {
+    id: 'flux-realism',
+    name: 'Realism',
+    repo: 'flux-realism',
+    engine: 'api',
+    description: '📸 Photo style'
+  },
+  {
+    id: 'flux-anime',
+    name: 'Anime',
+    repo: 'flux-anime',
+    engine: 'api',
+    description: '🎌 Anime style'
+  },
+  // Local Models (Coming Soon)
+  {
+    id: 'sd-local',
+    name: 'SD 1.5 Local',
+    repo: 'Xenova/stable-diffusion-v1-5',
+    engine: 'local',
+    description: '🖥️ Coming Soon',
+    disabled: true,
+    comingSoon: true
+  }
+];
 
 const initialState = {
   // WebGPU status
@@ -23,6 +70,15 @@ const initialState = {
     progress: 0,
     imageUrl: null,
     error: null
+  },
+  // System/Cache state
+  system: {
+    cachedModels: [], // Array of model IDs that are cached (OPFS)
+    browserCachedModels: [], // Array of models cached by Transformers.js (Browser Cache API)
+    storageUsed: 0,
+    storageQuota: 0,
+    browserCacheSize: 0,
+    isLoadingCache: true
   },
   // Worker reference
   worker: null
@@ -130,6 +186,29 @@ function reducer(state, action) {
         worker: action.payload
       };
     
+    case 'UPDATE_CACHE_STATUS':
+      return {
+        ...state,
+        system: {
+          ...state.system,
+          cachedModels: action.payload.cachedModels ?? state.system.cachedModels,
+          browserCachedModels: action.payload.browserCachedModels ?? state.system.browserCachedModels,
+          storageUsed: action.payload.storageUsed ?? state.system.storageUsed,
+          storageQuota: action.payload.storageQuota ?? state.system.storageQuota,
+          browserCacheSize: action.payload.browserCacheSize ?? state.system.browserCacheSize,
+          isLoadingCache: false
+        }
+      };
+    
+    case 'SET_CACHE_LOADING':
+      return {
+        ...state,
+        system: {
+          ...state.system,
+          isLoadingCache: action.payload
+        }
+      };
+    
     default:
       return state;
   }
@@ -190,17 +269,46 @@ export function StoreProvider({ children }) {
     // Check WebGPU support
     worker.postMessage({ type: 'CHECK_WEBGPU' });
 
+    // Check cached models on startup
+    const checkCacheStatus = async () => {
+      try {
+        // Check OPFS cache
+        const cachedIds = await modelDownloader.checkCachedModels(AVAILABLE_MODELS);
+        const storageInfo = await opfsService.getStorageUsage();
+        
+        // Check Browser Cache (Transformers.js)
+        const browserCachedModels = await browserCacheService.listCachedModels();
+        const browserCacheSize = await browserCacheService.getTotalCacheSize();
+        
+        dispatch({
+          type: 'UPDATE_CACHE_STATUS',
+          payload: {
+            cachedModels: cachedIds,
+            browserCachedModels,
+            storageUsed: storageInfo.used,
+            storageQuota: storageInfo.quota,
+            browserCacheSize
+          }
+        });
+      } catch (error) {
+        console.error('Error checking cache status:', error);
+        dispatch({ type: 'SET_CACHE_LOADING', payload: false });
+      }
+    };
+    
+    checkCacheStatus();
+
     return () => {
       worker.terminate();
     };
   }, []);
 
   // Actions
-  const loadModel = useCallback((modelId, modelRepo) => {
+  const loadModel = useCallback((modelId, modelRepo, engine = 'api') => {
     if (workerRef.current) {
       workerRef.current.postMessage({
         type: 'LOAD_MODEL',
-        payload: { modelId, modelRepo }
+        payload: { modelId, modelRepo, engine }
       });
     }
   }, []);
@@ -218,13 +326,95 @@ export function StoreProvider({ children }) {
     dispatch({ type: 'RESET_GENERATION' });
   }, []);
 
+  // Refresh cache status
+  const refreshCacheStatus = useCallback(async () => {
+    dispatch({ type: 'SET_CACHE_LOADING', payload: true });
+    
+    try {
+      // Check OPFS cache
+      const cachedIds = await modelDownloader.checkCachedModels(AVAILABLE_MODELS);
+      const storageInfo = await opfsService.getStorageUsage();
+      
+      // Check Browser Cache (Transformers.js)
+      const browserCachedModels = await browserCacheService.listCachedModels();
+      const browserCacheSize = await browserCacheService.getTotalCacheSize();
+      
+      dispatch({
+        type: 'UPDATE_CACHE_STATUS',
+        payload: {
+          cachedModels: cachedIds,
+          browserCachedModels,
+          storageUsed: storageInfo.used,
+          storageQuota: storageInfo.quota,
+          browserCacheSize
+        }
+      });
+    } catch (error) {
+      console.error('Error refreshing cache status:', error);
+      dispatch({ type: 'SET_CACHE_LOADING', payload: false });
+    }
+  }, []);
+
+  // Delete a cached model
+  const deleteModelFromCache = useCallback(async (modelId) => {
+    const model = AVAILABLE_MODELS.find(m => m.id === modelId);
+    if (!model) return false;
+    
+    const success = await modelDownloader.deleteModel(model.repo);
+    
+    if (success) {
+      // Refresh cache status after deletion
+      await refreshCacheStatus();
+    }
+    
+    return success;
+  }, [refreshCacheStatus]);
+
+  // Clear all cached models (OPFS)
+  const clearAllCache = useCallback(async () => {
+    const success = await opfsService.clearAll();
+    
+    if (success) {
+      await refreshCacheStatus();
+    }
+    
+    return success;
+  }, [refreshCacheStatus]);
+
+  // Delete a model from browser cache (Transformers.js)
+  const deleteBrowserCachedModel = useCallback(async (modelName) => {
+    const success = await browserCacheService.deleteModel(modelName);
+    
+    if (success) {
+      await refreshCacheStatus();
+    }
+    
+    return success;
+  }, [refreshCacheStatus]);
+
+  // Clear all browser cached models (Transformers.js)
+  const clearAllBrowserCache = useCallback(async () => {
+    const success = await browserCacheService.clearAll();
+    
+    if (success) {
+      await refreshCacheStatus();
+    }
+    
+    return success;
+  }, [refreshCacheStatus]);
+
   const value = {
     state,
     dispatch,
     actions: {
       loadModel,
       generate,
-      resetGeneration
+      resetGeneration,
+      refreshCacheStatus,
+      deleteModelFromCache,
+      clearAllCache,
+      deleteBrowserCachedModel,
+      clearAllBrowserCache
     }
   };
 

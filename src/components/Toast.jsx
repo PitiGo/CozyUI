@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState, useCallback, useRef } from 'react';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -41,29 +41,36 @@ const toastTypes = {
 const Toast = ({ id, type = 'info', message, duration = 4000, onClose }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const onCloseRef = useRef(onClose);
+  const idRef = useRef(id);
+  
+  // Keep refs updated
+  onCloseRef.current = onClose;
+  idRef.current = id;
 
   const config = toastTypes[type] || toastTypes.info;
   const Icon = config.icon;
 
-  useEffect(() => {
-    // Enter animation
-    requestAnimationFrame(() => setIsVisible(true));
-
-    // Auto dismiss
-    if (duration && type !== 'loading') {
-      const timer = setTimeout(() => {
-        handleClose();
-      }, duration);
-      return () => clearTimeout(timer);
-    }
-  }, [duration, type]);
-
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsLeaving(true);
     setTimeout(() => {
-      onClose?.(id);
+      onCloseRef.current?.(idRef.current);
     }, 200);
-  };
+  }, []);
+
+  useEffect(() => {
+    // Enter animation on next frame
+    const raf = requestAnimationFrame(() => setIsVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    // Auto dismiss
+    if (duration && type !== 'loading') {
+      const timer = setTimeout(handleClose, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [duration, type, handleClose]);
 
   return (
     <div
@@ -106,4 +113,3 @@ export const ToastContainer = ({ toasts = [], onClose }) => {
 };
 
 export default memo(Toast);
-

@@ -3,7 +3,7 @@ import { Handle, Position, useReactFlow } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { Dices, RefreshCw, Lock, Unlock } from 'lucide-react';
 
-const SeedNode = ({ id, data, isConnectable }) => {
+const SeedNode = ({ id, data, isConnectable, selected }) => {
   const { updateNodeData } = useReactFlow();
 
   const seed = data.seed ?? -1;
@@ -32,9 +32,11 @@ const SeedNode = ({ id, data, isConnectable }) => {
 
   return (
     <BaseNode 
-      title="Seed Generator" 
-      icon={<Dices size={18} />}
+      title="Seed" 
+      icon={<Dices size={16} />}
       color="cyan"
+      selected={selected}
+      minWidth={180}
     >
       <div className="space-y-4">
         {/* Seed Input */}

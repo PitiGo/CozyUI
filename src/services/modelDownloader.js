@@ -160,6 +160,51 @@ class ModelDownloader {
     const cacheKey = `${modelId}/${filename}`;
     this.downloads.delete(cacheKey);
   }
+
+  /**
+   * Check if a model is cached (has any files downloaded)
+   */
+  async isModelCached(modelRepo) {
+    const path = `models/${modelRepo}`;
+    return await opfsService.directoryExists(path);
+  }
+
+  /**
+   * Check which models from a list are cached
+   */
+  async checkCachedModels(availableModels) {
+    const cachedIds = [];
+    
+    for (const model of availableModels) {
+      const isCached = await this.isModelCached(model.repo);
+      if (isCached) {
+        cachedIds.push(model.id);
+      }
+    }
+    
+    return cachedIds;
+  }
+
+  /**
+   * Delete a cached model
+   */
+  async deleteModel(modelRepo) {
+    const path = `models/${modelRepo}`;
+    const success = await opfsService.deleteDirectory(path);
+    
+    if (success) {
+      console.log(`✅ Model deleted: ${modelRepo}`);
+    }
+    
+    return success;
+  }
+
+  /**
+   * Get all cached models with their info
+   */
+  async getCachedModelsInfo() {
+    return await opfsService.listCachedModels();
+  }
 }
 
 export const modelDownloader = new ModelDownloader();
