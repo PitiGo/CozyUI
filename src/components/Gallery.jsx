@@ -155,6 +155,13 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
                     </button>
                   </div>
 
+                  {/* Model Badge */}
+                  {image.model && (
+                    <div className="absolute top-1 left-1 text-[8px] font-semibold text-indigo-300 bg-indigo-500/40 px-1.5 py-0.5 rounded-full backdrop-blur-sm">
+                      {image.model}
+                    </div>
+                  )}
+
                   {/* Time Badge */}
                   <div className="absolute bottom-1 left-1 text-[10px] text-white/70 bg-black/50 px-1 rounded flex items-center gap-0.5">
                     <Clock size={8} />
@@ -234,6 +241,11 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
 
               {/* Metadata */}
               <div className="flex items-center gap-4 mt-4 text-xs text-slate-500">
+                {selectedImage.model && (
+                  <span className="text-indigo-400 bg-indigo-500/20 px-2 py-0.5 rounded-full font-medium">
+                    {selectedImage.model}
+                  </span>
+                )}
                 <span>{selectedImage.width}×{selectedImage.height}</span>
                 <span>Seed: {selectedImage.seed || 'random'}</span>
                 <span>{formatTime(selectedImage.timestamp)}</span>

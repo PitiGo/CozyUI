@@ -214,6 +214,10 @@ function Flow() {
         return node;
       });
 
+      // Find the model loader node to get the active model name
+      const modelNode = nds.find(n => n.type === 'modelLoaderNode');
+      const modelName = modelNode?.data?.selectedModel?.name || state.model.id || 'Unknown';
+
       // Add to gallery
       addImage({
         url: state.generation.imageUrl,
@@ -222,6 +226,7 @@ function Flow() {
         width: inferenceNode?.data?.width || 512,
         height: inferenceNode?.data?.height || 512,
         seed: inferenceNode?.data?.seed,
+        model: modelName,
       });
 
       return updatedNodes;
@@ -524,16 +529,12 @@ function Flow() {
       const selectedModel = modelNode.data.selectedModel;
       actions.loadModel(selectedModel.id, selectedModel.repo, selectedModel.engine || 'api');
 
-      if (selectedModel.engine === 'mediapipe') {
-        toast.info('Loading local model (this may take a while)...');
-      } else {
-        toast.info('Connecting to API...');
-      }
+      toast.info('Loading model locally...');
       return;
     }
 
-    // Generate via API
-    toast.info('Sending request to API...');
+    // Generate image locally
+    toast.info('Generating image locally...');
     actions.generate({
       prompt: promptNode.data.prompt,
       negativePrompt: promptNode.data.negativePrompt,

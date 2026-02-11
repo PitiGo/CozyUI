@@ -1,226 +1,90 @@
-# 🗺️ CozyUI - Roadmap
+# CozyUI - Roadmap
 
-> Documento de seguimiento del desarrollo y mejoras futuras
+## Current State: v0.2.0 - 100% Local Generation
 
----
+**Last updated:** February 2026
 
-## 📊 Estado Actual: MVP v0.1.0 ✅
+### Completed
 
-**Fecha de completación:** Diciembre 2024
-
-### ✅ Funcionalidades Implementadas
-
-| Feature | Estado | Descripción |
-|---------|--------|-------------|
-| Canvas de Nodos | ✅ Completo | React Flow con lienzo infinito, zoom, pan |
-| Nodo Text Prompt | ✅ Completo | Input de prompt positivo y negativo |
-| Nodo Model Loader | ✅ Completo | Selector de modelos (SD 1.5, SD Turbo, SDXL) |
-| Nodo Run Inference | ✅ Completo | Controles de Steps, CFG, dimensiones, seed |
-| Nodo Image Output | ✅ Completo | Visualización y descarga de imagen |
-| Conexiones Animadas | ✅ Completo | Cables visuales entre nodos |
-| Web Worker | ✅ Completo | Inferencia en hilo separado |
-| Detección WebGPU | ✅ Completo | Verificación de soporte GPU |
-| UI Moderna | ✅ Completo | Tema oscuro, Tailwind CSS |
-| Generación de Imágenes | ✅ Completo | Via Pollinations.ai API |
-
-### ⚠️ Limitaciones Actuales
-
-1. **Generación remota**: Usa Pollinations.ai (API externa) en lugar de WebGPU local
-2. **Sin persistencia**: Las imágenes se pierden al recargar la página
-3. **Sin galería**: No hay historial de imágenes generadas
-4. **Modelos limitados**: Solo 3 modelos preconfigurados
-
----
-
-## 🚀 Fase 2: Experiencia de Usuario (UX)
-
-**Prioridad:** Alta  
-**Estimación:** 2-3 semanas
-
-### 📋 Tareas Pendientes
-
-- [ ] **Sistema OPFS (Origin Private File System)**
-  - Caché persistente de modelos descargados
-  - Gestor visual para ver/eliminar modelos guardados
-  - Indicador de espacio utilizado
-
-- [ ] **Galería de Imágenes**
-  - Historial de imágenes generadas en la sesión
-  - Persistencia en localStorage/IndexedDB
-  - Metadatos: prompt, seed, modelo usado
-  - Exportar galería como ZIP
-
-- [ ] **Barras de Progreso Mejoradas**
-  - Progreso real durante descarga de modelos
-  - Estimación de tiempo restante
-  - Cancelación de generación
-
-- [ ] **Mejoras de UI**
-  - Notificaciones toast para errores/éxitos
-  - Modo pantalla completa para el canvas
-  - Atajos de teclado (Ctrl+Enter = generar)
-  - Temas claros/oscuros
-
-### 🎯 Criterios de Aceptación Fase 2
-
-- [ ] Usuario puede ver qué modelos tiene en caché
-- [ ] Usuario puede ver historial de últimas 50 imágenes
-- [ ] Progreso de descarga muestra porcentaje real
-- [ ] UI responde correctamente en móviles
+| Feature | Status | Details |
+|---------|--------|---------|
+| Visual node canvas | Done | React Flow with infinite canvas, zoom, pan |
+| Text Prompt node | Done | Positive and negative prompt input |
+| Model Loader node | Done | SD-Turbo, Janus-Pro 1B, Image Enhancer |
+| Run Inference node | Done | Steps, CFG, dimensions, seed controls |
+| Image Output node | Done | Display, download, real dimensions |
+| 100% local text-to-image | Done | web-txt2img + WebGPU (SD-Turbo, Janus-Pro) |
+| Model caching | Done | Browser Cache Storage API, survives restarts |
+| Download resume | Done | Interrupted downloads resume from where they left off |
+| Memory guard | Done | RAM monitoring, pre-load safety checks |
+| Image gallery | Done | Auto-save with model name, seed, prompt metadata |
+| Image-to-Image | Done | Drag & drop, denoising strength control |
+| Inpainting | Done | Canvas mask editor with brush/eraser |
+| Background removal | Done | Local RMBG-1.4 via Transformers.js |
+| Super-resolution | Done | Local 2x upscale via Transformers.js |
+| Seed control | Done | Reproducible results |
+| Workflow export/import | Done | Save and share as JSON |
+| Workflow presets | Done | Pre-built templates |
+| Image resize node | Done | Presets and custom values |
+| Toast notifications | Done | Global event-based toast system |
+| Error boundary | Done | Graceful error recovery |
+| Storage manager | Done | View/clear cached models |
 
 ---
 
-## 🔧 Fase 3: Funcionalidades Avanzadas
+## Upcoming
 
-**Prioridad:** Media  
-**Estimación:** 3-4 semanas
+### UX Improvements
+- [ ] Keyboard shortcuts (Ctrl+Enter to generate)
+- [ ] Light/dark theme toggle
+- [ ] Mobile-responsive layout
+- [ ] Estimated time remaining during generation
+- [ ] Generation cancellation
 
-### 📋 Tareas Pendientes
+### More Models
+- [ ] SDXL-Turbo (awaiting ONNX conversion for browser)
+- [ ] SD 1.5 (awaiting browser-compatible ONNX)
+- [ ] Additional Transformers.js models as they become available
 
-- [ ] **Nuevos Nodos Lógicos**
-  - Nodo Seed (generador de semillas)
-  - Nodo Scheduler (diferentes samplers)
-  - Nodo Image Resize
-  - Nodo Batch (múltiples imágenes)
+### Advanced Features
+- [ ] LoRA support (if browser-compatible format emerges)
+- [ ] ControlNet helpers (Canny, Depth, Pose)
+- [ ] Batch generation (multiple images)
+- [ ] Scheduler/sampler selection node
 
-- [ ] **Img2Img**
-  - Nodo para subir imagen base
-  - Control de "denoising strength"
-  - Soporte drag & drop de imágenes
-
-- [ ] **Importación de Modelos**
-  - Subir archivos .onnx desde el PC
-  - Convertidor de .safetensors (guía/herramienta)
-  - Librería curada de modelos convertidos
-
-- [ ] **Presets de Workflows**
-  - Guardar configuraciones de nodos
-  - Exportar/importar workflows como JSON
-  - Plantillas predefinidas
-
-### 🎯 Criterios de Aceptación Fase 3
-
-- [ ] Usuario puede hacer Img2Img básico
-- [ ] Usuario puede guardar y cargar workflows
-- [ ] Al menos 5 modelos adicionales disponibles
+### Infrastructure
+- [ ] PWA / Service Worker for full offline support
+- [ ] Code splitting for faster initial load
+- [ ] Production deployment (Vercel/Netlify)
 
 ---
 
-## ⚡ Fase 4: Optimización y WebGPU Local
+## Known Limitations
 
-**Prioridad:** Media-Baja (depende de madurez de WebGPU)  
-**Estimación:** 4-6 semanas
-
-### 📋 Tareas Pendientes
-
-- [ ] **Migración a WebGPU Local**
-  - Implementar Transformers.js con text-to-image cuando esté disponible
-  - O usar WebSD/diffusers.js como alternativa
-  - Fallback automático a API si WebGPU no disponible
-
-- [ ] **Soporte LoRA**
-  - Fusión de LoRAs en modelos base
-  - UI para seleccionar múltiples LoRAs
-  - Peso ajustable por LoRA
-
-- [ ] **Optimizaciones de Rendimiento**
-  - Cuantización de modelos (q4, q8)
-  - Streaming de inferencia
-  - Caché de embeddings de texto
-
-- [ ] **PWA Completa**
-  - Service Worker para offline
-  - Instalable como app
-  - Sincronización en background
-
-### 🎯 Criterios de Aceptación Fase 4
-
-- [ ] Generación funciona 100% offline con modelos cacheados
-- [ ] Tiempo de generación < 30s en GPU moderna
-- [ ] App instalable desde Chrome/Edge
+- WebGPU required (Chrome/Edge 113+)
+- Models are large (1.5-2.4 GB download, cached after first load)
+- 8 GB RAM minimum, 16 GB recommended for SD-Turbo
+- Generation speed depends on GPU capability
+- Image-to-image with text prompts not yet supported locally (enhancement only)
 
 ---
 
-## 🐛 Bugs Conocidos
+## Changelog
 
-| Bug | Severidad | Estado |
-|-----|-----------|--------|
-| Sliders no muestran valor actual visualmente | Baja | Pendiente |
-| MiniMap no actualiza colores al conectar | Baja | Pendiente |
-| Warnings de accesibilidad en consola | Baja | Pendiente |
+### v0.2.0 (February 2026)
+- 100% local generation via WebGPU (no APIs)
+- SD-Turbo and Janus-Pro 1B models
+- Persistent model caching with download resume
+- Memory guard with RAM monitoring
+- Gallery with model name metadata
+- Inpainting with mask editor
+- Background removal (RMBG-1.4)
+- Error boundary and global toast system
 
----
-
-## 💡 Ideas Futuras (Backlog)
-
-- [ ] Integración con ComfyUI (importar workflows)
-- [ ] Modo colaborativo (múltiples usuarios)
-- [ ] Generación de video (AnimateDiff)
-- [ ] Upscaling con Real-ESRGAN
-- [x] **Inpainting** - ✅ COMPLETADO (Diciembre 2024)
-  - Editor de máscaras con Canvas API
-  - Brush/Eraser tools con tamaño ajustable
-  - Vista previa de máscara con opacidad configurable
-  - Integración con galería y drag & drop
-- [ ] Outpainting
-- [ ] ControlNet (pose, depth, canny)
-- [ ] Integración con APIs de pago (Replicate, RunPod)
-- [ ] Plugin system para nodos custom
-
----
-
-## 📝 Notas Técnicas
-
-### Stack Actual
-- **Frontend**: React 18 + Vite 5
-- **UI**: Tailwind CSS 3
-- **Nodos**: @xyflow/react (React Flow)
-- **Iconos**: Lucide React
-- **IA**: Pollinations.ai API (temporal)
-
-### Dependencias Futuras Posibles
-- `@xenova/transformers` - Para WebGPU local
-- `idb` - IndexedDB wrapper para galería
-- `workbox` - PWA/Service Worker
-- `zustand` - Estado global (alternativa a Context)
-
-### Requisitos del Navegador
-- Chrome 113+ / Edge 113+ (WebGPU)
-- Firefox 118+ (WebGPU experimental)
-- Safari 17+ (WebGPU parcial)
-
----
-
-## 📅 Changelog
-
-### v0.1.0 (Diciembre 2024)
-- 🎉 Release inicial del MVP
-- ✨ Canvas de nodos con React Flow
-- ✨ 4 nodos básicos (Prompt, Model, Inference, Output)
-- ✨ Generación de imágenes via Pollinations.ai
-- ✨ UI moderna con tema oscuro
-- ✨ Detección de WebGPU
-- ✨ Web Worker para inferencia no-bloqueante
-
----
-
-## 🤝 Contribuciones
-
-Para contribuir al proyecto:
-
-1. Fork del repositorio
-2. Crear branch: `feature/nombre-feature`
-3. Commits descriptivos
-4. Pull Request con descripción detallada
-
-### Áreas donde se necesita ayuda:
-- Testing en diferentes navegadores/GPUs
-- Conversión de modelos a ONNX
-- Documentación y tutoriales
-- Diseño UI/UX
-- Optimización de rendimiento
-
----
-
-*Última actualización: Diciembre 2024*
-
+### v0.1.0 (December 2024)
+- Initial MVP release
+- Node canvas with React Flow
+- 4 basic nodes (Prompt, Model, Inference, Output)
+- Image generation via Pollinations.ai API
+- WebGPU detection
+- Web Worker for non-blocking inference
