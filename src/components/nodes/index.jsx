@@ -6,6 +6,7 @@ import Img2ImgNode from './Img2ImgNode';
 import SeedNode from './SeedNode';
 import ImageResizeNode from './ImageResizeNode';
 import BackgroundRemovalNode from './BackgroundRemovalNode';
+import InpaintingNode from './InpaintingNode';
 
 export const nodeTypes = {
   promptNode: PromptNode,
@@ -16,15 +17,17 @@ export const nodeTypes = {
   seedNode: SeedNode,
   imageResizeNode: ImageResizeNode,
   backgroundRemovalNode: BackgroundRemovalNode,
+  inpaintingNode: InpaintingNode,
 };
 
-export { 
-  PromptNode, 
-  ModelLoaderNode, 
-  InferenceNode, 
+export {
+  PromptNode,
+  ModelLoaderNode,
+  InferenceNode,
   ImageDisplayNode,
   Img2ImgNode,
   SeedNode,
   ImageResizeNode,
-  BackgroundRemovalNode
+  BackgroundRemovalNode,
+  InpaintingNode
 };

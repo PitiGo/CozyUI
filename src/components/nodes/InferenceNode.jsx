@@ -3,6 +3,7 @@ import { Handle, Position, useReactFlow, useNodes, useEdges } from '@xyflow/reac
 import BaseNode from './BaseNode';
 import { Cpu, Play, Loader2 } from 'lucide-react';
 import { useStore } from '../../store/useStore.jsx';
+import { globalToast } from '../../utils/globalToast';
 
 const InferenceNode = ({ id, data, isConnectable, selected }) => {
   const { updateNodeData } = useReactFlow();
@@ -16,7 +17,7 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
 
   const handleGenerate = useCallback((e) => {
     e.stopPropagation(); // Prevent React Flow from intercepting the click
-    console.log('🚀 Generate clicked! (will use Pollinations.ai API)');
+    console.log('🚀 Generate clicked! (100% local generation)');
     
     // Find connected nodes via edges
     const promptEdge = edges.find(e => e.target === id && e.targetHandle === 'prompt-in');
@@ -33,24 +34,24 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
     const img2imgNodeByType = img2imgNode || nodes.find(n => n.type === 'img2imgNode');
     
     if (!promptNodeByType) {
-      alert('Please add a Text Prompt node and connect it to the prompt input (top handle)');
+      globalToast.error('Connect a Text Prompt node to the prompt input (top handle)');
       return;
     }
     
     if (!modelNodeByType) {
-      alert('Please add a Model Loader node and connect it to the model input (bottom handle)');
+      globalToast.error('Connect a Model Loader node to the model input (bottom handle)');
       return;
     }
 
     const prompt = promptNodeByType.data?.prompt;
     if (!prompt || prompt.trim() === '') {
-      alert('Please enter a prompt in the Text Prompt node');
+      globalToast.error('Enter a prompt in the Text Prompt node');
       return;
     }
 
     const selectedModel = modelNodeByType.data?.selectedModel;
     if (!selectedModel) {
-      alert('Please select a model in the Model Loader node');
+      globalToast.error('Select a model in the Model Loader node');
       return;
     }
 
@@ -67,17 +68,17 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
 
     // Configure model if needed
     if (state.model.status !== 'loaded' || state.model.id !== selectedModel.id) {
-      const isLocal = selectedModel.engine === 'local';
-      console.log(isLocal ? '🖥️ Loading local model:' : '☁️ Configuring:', selectedModel.name);
-      actions.loadModel(selectedModel.id, selectedModel.repo, selectedModel.engine || 'api');
+      console.log('🖥️ Loading model:', selectedModel.name);
+      actions.loadModel(selectedModel.id, selectedModel.repo, selectedModel.engine || 'local-txt2img');
     }
     
-    // Generate via API
-    console.log('🎨 Generating image...');
+    // Generate (100% local)
+    console.log('🎨 Generating image (100% local)...');
     console.log('   Model:', selectedModel.name);
     console.log('   Prompt:', prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''));
     
     actions.generate({
+      modelId: selectedModel.id,
       prompt: prompt,
       negativePrompt: promptNodeByType.data?.negativePrompt || '',
       steps: data.steps || 4,

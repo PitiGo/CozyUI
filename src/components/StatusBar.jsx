@@ -1,19 +1,29 @@
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { useStore } from '../store/useStore.jsx';
 import { useWebGPU } from '../hooks/useWebGPU.jsx';
+import { getMemoryInfo, formatMemory } from '../services/memoryGuard.js';
 import { 
   Cpu, 
-  Cloud, 
   Activity,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  MemoryStick
 } from 'lucide-react';
 
 const StatusBar = () => {
   const { state } = useStore();
   const { model, generation } = state;
   const webgpu = useWebGPU();
+  const [memInfo, setMemInfo] = useState(null);
+
+  // Poll memory info every 3 seconds
+  useEffect(() => {
+    const update = () => setMemInfo(getMemoryInfo());
+    update();
+    const interval = setInterval(update, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getModelStatus = () => {
     switch (model.status) {
@@ -21,13 +31,13 @@ const StatusBar = () => {
         return (
           <span className="flex items-center gap-1.5 text-amber-400">
             <Loader2 size={12} className="animate-spin" />
-            Connecting...
+            Loading...
           </span>
         );
       case 'loaded':
         return (
           <span className="flex items-center gap-1.5 text-emerald-400">
-            <Cloud size={12} />
+            <CheckCircle2 size={12} />
             {model.id || 'Ready'}
           </span>
         );
@@ -79,6 +89,28 @@ const StatusBar = () => {
     }
   };
 
+  // Memory usage display with color coding
+  const getMemoryDisplay = () => {
+    if (!memInfo?.supported) return null;
+
+    const usedGB = memInfo.usedJSHeap / 1024 ** 3;
+    const limitGB = memInfo.heapLimit / 1024 ** 3;
+    const pct = limitGB > 0 ? (usedGB / limitGB) * 100 : 0;
+
+    let color = 'text-slate-500';
+    if (pct > 80) color = 'text-rose-400';
+    else if (pct > 60) color = 'text-amber-400';
+    else if (pct > 40) color = 'text-slate-400';
+
+    return (
+      <span className={`flex items-center gap-1 ${color}`} title={`JS Heap: ${formatMemory(memInfo.usedJSHeap)} / ${formatMemory(memInfo.heapLimit)}`}>
+        <MemoryStick size={11} />
+        <span className="font-mono">{usedGB.toFixed(1)}</span>
+        <span className="text-slate-600">/ {limitGB.toFixed(0)} GB</span>
+      </span>
+    );
+  };
+
   return (
     <div className="absolute bottom-0 left-0 right-0 h-8 z-10
       bg-[#0d0d12]/90 backdrop-blur-sm border-t border-white/5
@@ -98,6 +130,14 @@ const StatusBar = () => {
         <div className="flex items-center gap-1.5">
           {getModelStatus()}
         </div>
+
+        {/* Memory indicator */}
+        {memInfo?.supported && (
+          <>
+            <div className="w-px h-4 bg-white/10" />
+            {getMemoryDisplay()}
+          </>
+        )}
       </div>
 
       {/* Center - Generation Status */}
@@ -107,7 +147,7 @@ const StatusBar = () => {
 
       {/* Right side */}
       <div className="flex items-center gap-4 text-slate-500">
-        <span className="text-[10px]">Pollinations.ai + WebGPU Enhancement</span>
+        <span className="text-[10px]">100% Local · WebGPU</span>
       </div>
     </div>
   );

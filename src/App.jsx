@@ -17,10 +17,12 @@ import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import StatusBar from './components/StatusBar';
 import { ToastContainer } from './components/Toast';
+import ErrorBoundary from './components/ErrorBoundary';
 import { StoreProvider, useStore } from './store/useStore.jsx';
 import { useGallery } from './hooks/useGallery.jsx';
 import { useToast } from './hooks/useToast.jsx';
 import { useWorkflow } from './hooks/useWorkflow.jsx';
+import { globalToast } from './utils/globalToast';
 
 // Initial nodes for demo
 const initialNodes = [
@@ -28,7 +30,7 @@ const initialNodes = [
     id: 'prompt-1',
     type: 'promptNode',
     position: { x: 100, y: 150 },
-    data: { 
+    data: {
       prompt: 'A cyberpunk city at night, neon lights reflecting on wet streets, towering skyscrapers, flying cars, cinematic lighting, 8k, highly detailed',
       negativePrompt: 'blurry, low quality, distorted, ugly, watermark'
     },
@@ -37,13 +39,15 @@ const initialNodes = [
     id: 'model-1',
     type: 'modelLoaderNode',
     position: { x: 100, y: 420 },
-    data: { 
+    data: {
       selectedModel: {
-        id: 'flux',
-        name: 'Flux (Cloud)',
-        repo: 'flux',
-        engine: 'api',
-        description: '☁️ Best quality'
+        id: 'sd-turbo',
+        name: 'SD-Turbo',
+        repo: 'sd-turbo',
+        engine: 'local-txt2img',
+        description: '🖥️ 100% Local · 1-step · Fast',
+        local: true,
+        status: 'working'
       },
       modelStatus: 'idle',
       loadProgress: 0
@@ -53,7 +57,7 @@ const initialNodes = [
     id: 'inference-1',
     type: 'inferenceNode',
     position: { x: 500, y: 250 },
-    data: { 
+    data: {
       steps: 20,
       guidanceScale: 7.5,
       seed: -1,
@@ -67,7 +71,7 @@ const initialNodes = [
     id: 'output-1',
     type: 'imageDisplayNode',
     position: { x: 900, y: 250 },
-    data: { 
+    data: {
       imageUrl: null,
       isLoading: false
     },
@@ -125,11 +129,18 @@ function Flow() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const { screenToFlowPosition } = useReactFlow();
   const { state, actions } = useStore();
-  
+
   // Gallery, Toast, and Workflow hooks
   const { images: galleryImages, addImage, deleteImage, clearGallery } = useGallery();
   const toast = useToast();
   const { exportWorkflow, loadFromFile } = useWorkflow();
+
+  // Bridge globalToast to the local toast system
+  useEffect(() => {
+    return globalToast.subscribe((type, message, duration) => {
+      if (toast[type]) toast[type](message, duration);
+    });
+  }, [toast]);
 
   // Refs to track previous values and avoid infinite loops
   const prevModelStatus = useRef(state.model.status);
@@ -141,11 +152,11 @@ function Flow() {
 
   // Sync store state with model loader node
   useEffect(() => {
-    if (prevModelStatus.current === state.model.status && 
-        prevModelProgress.current === state.model.progress) return;
+    if (prevModelStatus.current === state.model.status &&
+      prevModelProgress.current === state.model.progress) return;
     prevModelStatus.current = state.model.status;
     prevModelProgress.current = state.model.progress;
-    
+
     setNodes((nds) =>
       nds.map((node) => {
         if (node.type === 'modelLoaderNode') {
@@ -163,7 +174,7 @@ function Flow() {
   useEffect(() => {
     if (prevGenStatus.current === state.generation.status) return;
     prevGenStatus.current = state.generation.status;
-    
+
     setNodes((nds) =>
       nds.map((node) => {
         if (node.type === 'inferenceNode') {
@@ -182,22 +193,22 @@ function Flow() {
     if (!state.generation.imageUrl || state.generation.status !== 'complete') return;
     if (prevImageUrl.current === state.generation.imageUrl) return;
     prevImageUrl.current = state.generation.imageUrl;
-    
+
     // Update inference node with the generated image (so it can output to connected nodes)
     setNodes((nds) => {
       const inferenceNode = nds.find(n => n.type === 'inferenceNode');
       const promptNode = nds.find(n => n.type === 'promptNode');
-      
+
       // Store image in inference node data for propagation
       const updatedNodes = nds.map((node) => {
         if (node.type === 'inferenceNode') {
-          return { 
-            ...node, 
-            data: { 
-              ...node.data, 
+          return {
+            ...node,
+            data: {
+              ...node.data,
               generatedImageUrl: state.generation.imageUrl,
               isGenerating: false
-            } 
+            }
           };
         }
         return node;
@@ -232,7 +243,7 @@ function Flow() {
     if (prevModelStatusForToast.current === state.model.status) return;
     const wasLoading = prevModelStatusForToast.current === 'loading';
     prevModelStatusForToast.current = state.model.status;
-    
+
     if (state.model.status === 'loaded' && wasLoading) {
       toast.success('Ready! ✓');
     } else if (state.model.status === 'error') {
@@ -246,9 +257,9 @@ function Flow() {
   // Create a stable key from node outputs
   const outputsKey = useMemo(() => {
     return nodes
-      .filter(n => (n.type === 'backgroundRemovalNode' && n.data?.outputImage) || 
-                   (n.type === 'img2imgNode' && n.data?.imageUrl) ||
-                   (n.type === 'inferenceNode' && n.data?.generatedImageUrl))
+      .filter(n => (n.type === 'backgroundRemovalNode' && n.data?.outputImage) ||
+        (n.type === 'img2imgNode' && n.data?.imageUrl) ||
+        (n.type === 'inferenceNode' && n.data?.generatedImageUrl))
       .map(n => `${n.id}:${n.data?.outputImage || n.data?.imageUrl || n.data?.generatedImageUrl || ''}`)
       .join('|');
   }, [nodes]);
@@ -274,10 +285,10 @@ function Flow() {
     Object.keys(currentOutputs).forEach(nodeId => {
       const output = currentOutputs[nodeId];
       const prevOutput = prevOutputsRef.current[nodeId];
-      
+
       if (!prevOutput || prevOutput.value !== output.value) {
         prevOutputsRef.current[nodeId] = output;
-        
+
         // Find connected nodes
         const connectedEdges = edges.filter(e => e.source === nodeId);
         connectedEdges.forEach(edge => {
@@ -285,7 +296,7 @@ function Flow() {
           if (!nodesToUpdate.has(targetId)) {
             nodesToUpdate.set(targetId, {});
           }
-          
+
           nodesToUpdate.set(targetId, { ...nodesToUpdate.get(targetId), imageUrl: output.value });
         });
       }
@@ -357,7 +368,7 @@ function Flow() {
       const sourceNode = nodes.find(n => n.id === params.source);
       const targetNode = nodes.find(n => n.id === params.target);
       let strokeColor = '#6366f1';
-      
+
       if (sourceNode?.type === 'modelLoaderNode') strokeColor = '#8b5cf6';
       else if (sourceNode?.type === 'inferenceNode') strokeColor = '#10b981';
       else if (sourceNode?.type === 'promptNode') strokeColor = '#6366f1';
@@ -461,7 +472,7 @@ function Flow() {
       case 'promptNode':
         return { prompt: '', negativePrompt: '' };
       case 'modelLoaderNode':
-        return { 
+        return {
           selectedModel: {
             id: 'flux',
             name: 'Flux (Cloud)',
@@ -473,7 +484,7 @@ function Flow() {
           loadProgress: 0
         };
       case 'inferenceNode':
-        return { 
+        return {
           steps: 20,
           guidanceScale: 7.5,
           seed: -1,
@@ -486,6 +497,8 @@ function Flow() {
         return { imageUrl: null, isLoading: false };
       case 'backgroundRemovalNode':
         return { inputImage: null, outputImage: null, imageName: null };
+      case 'inpaintingNode':
+        return { imageUrl: null, maskUrl: null, imageName: null };
       default:
         return {};
     }
@@ -510,7 +523,7 @@ function Flow() {
     if (state.model.status !== 'loaded' || state.model.id !== modelNode.data.selectedModel.id) {
       const selectedModel = modelNode.data.selectedModel;
       actions.loadModel(selectedModel.id, selectedModel.repo, selectedModel.engine || 'api');
-      
+
       if (selectedModel.engine === 'mediapipe') {
         toast.info('Loading local model (this may take a while)...');
       } else {
@@ -572,21 +585,21 @@ function Flow() {
 
   return (
     <div className="flex h-screen w-screen bg-[#0a0a0f]">
-      <Sidebar 
+      <Sidebar
         galleryImages={galleryImages}
         onDeleteImage={deleteImage}
         onClearGallery={clearGallery}
       />
-      
+
       <div className="flex-1 relative" ref={reactFlowWrapper}>
-        <Toolbar 
+        <Toolbar
           onRunWorkflow={handleRunWorkflow}
           onClearCanvas={handleClearCanvas}
           onExportWorkflow={handleExportWorkflow}
           onImportWorkflow={handleImportWorkflow}
           onLoadPreset={handleLoadPreset}
         />
-        
+
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -602,36 +615,38 @@ function Flow() {
           proOptions={{ hideAttribution: true }}
           className="bg-[#0a0a0f]"
         >
-          <Background 
-            color="#1e1e2e" 
-            gap={20} 
+          <Background
+            color="#1e1e2e"
+            gap={20}
             size={1}
             variant="dots"
           />
-          <Controls 
+          <Controls
             position="bottom-right"
             style={{ marginBottom: '40px' }}
           />
-          <MiniMap 
+          <MiniMap
             nodeColor={(node) => {
               switch (node.type) {
                 case 'promptNode': return '#6366f1';
                 case 'modelLoaderNode': return '#8b5cf6';
                 case 'inferenceNode': return '#f59e0b';
                 case 'imageDisplayNode': return '#10b981';
+                case 'inpaintingNode': return '#8b5cf6';
+                case 'img2imgNode': return '#f43f5e';
                 default: return '#64748b';
               }
             }}
             maskColor="rgba(0, 0, 0, 0.8)"
-            style={{ 
+            style={{
               backgroundColor: '#12121a',
               marginBottom: '40px'
             }}
           />
         </ReactFlow>
-        
+
         <StatusBar />
-        
+
         {/* Toast Notifications */}
         <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />
       </div>
@@ -642,9 +657,11 @@ function Flow() {
 function App() {
   return (
     <StoreProvider>
-      <ReactFlowProvider>
-        <Flow />
-      </ReactFlowProvider>
+      <ErrorBoundary>
+        <ReactFlowProvider>
+          <Flow />
+        </ReactFlowProvider>
+      </ErrorBoundary>
     </StoreProvider>
   );
 }

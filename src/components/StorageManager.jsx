@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
-  Cloud,
   Cpu
 } from 'lucide-react';
 import { useStore, AVAILABLE_MODELS } from '../store/useStore.jsx';
@@ -70,7 +69,7 @@ const StorageManager = ({ isOpen, onClose }) => {
   };
 
   const handleClearAll = async () => {
-    if (!window.confirm('¿Estás seguro de eliminar todos los modelos en caché?')) return;
+    if (!window.confirm('Are you sure you want to delete all cached models?')) return;
     
     setIsClearing(true);
     try {
@@ -117,7 +116,7 @@ const StorageManager = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-slate-100">Storage Manager</h2>
-              <p className="text-xs text-slate-500">Gestiona los modelos en caché</p>
+              <p className="text-xs text-slate-500">Manage cached models</p>
             </div>
           </div>
           <button 
@@ -133,9 +132,9 @@ const StorageManager = ({ isOpen, onClose }) => {
           <div className="flex justify-between text-xs text-slate-400 mb-2">
             <span className="flex items-center gap-1">
               <Database size={12} />
-              Usado: {formatBytes(storageUsed)}
+              Used: {formatBytes(storageUsed)}
             </span>
-            <span>Cuota: {formatBytes(storageQuota)}</span>
+            <span>Quota: {formatBytes(storageQuota)}</span>
           </div>
           <div className="h-3 bg-black/50 rounded-full overflow-hidden">
             <div 
@@ -151,11 +150,11 @@ const StorageManager = ({ isOpen, onClose }) => {
           </div>
           <div className="flex justify-between mt-1">
             <p className="text-xs text-slate-500">
-              {usagePercent.toFixed(1)}% usado
+              {usagePercent.toFixed(1)}% used
             </p>
             {totalCacheSize > 0 && (
               <p className="text-xs text-emerald-400">
-                Modelos: {formatBytes(totalCacheSize)}
+                Models: {formatBytes(totalCacheSize)}
               </p>
             )}
           </div>
@@ -164,12 +163,12 @@ const StorageManager = ({ isOpen, onClose }) => {
         {/* Models List */}
         <div className="p-4 max-h-80 overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-slate-300">Modelos en Caché</h3>
+            <h3 className="text-sm font-medium text-slate-300">Cached Models</h3>
             <button
               onClick={handleRefresh}
               disabled={isLoadingCache}
               className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
-              title="Refrescar"
+              title="Refresh"
             >
               <RefreshCw size={14} className={isLoadingCache ? 'animate-spin' : ''} />
             </button>
@@ -182,9 +181,9 @@ const StorageManager = ({ isOpen, onClose }) => {
           ) : totalCachedItems === 0 ? (
             <div className="text-center py-8">
               <Database size={32} className="mx-auto text-slate-600 mb-2" />
-              <p className="text-sm text-slate-500">No hay modelos en caché</p>
+              <p className="text-sm text-slate-500">No cached models</p>
               <p className="text-xs text-slate-600 mt-1">
-                Los modelos se guardarán automáticamente al cargarlos
+                Models will be saved automatically when loaded
               </p>
             </div>
           ) : (
@@ -213,7 +212,7 @@ const StorageManager = ({ isOpen, onClose }) => {
                           </p>
                           <p className="text-xs text-slate-500">
                             {formatBytes(model.totalSize)}
-                            {model.files && ` • ${model.files.length} archivos`}
+                            {model.files && ` • ${model.files.length} files`}
                           </p>
                         </div>
                       </div>
@@ -226,7 +225,7 @@ const StorageManager = ({ isOpen, onClose }) => {
                             ? 'bg-rose-500/20 text-rose-400'
                             : 'opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-rose-400'
                         }`}
-                        title="Eliminar del caché"
+                        title="Delete from cache"
                       >
                         {isDeleting === model.name ? (
                           <Loader2 size={16} className="animate-spin" />
@@ -243,7 +242,7 @@ const StorageManager = ({ isOpen, onClose }) => {
               {cachedModels.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-xs text-slate-400 uppercase tracking-wider">
-                    <Cloud size={12} />
+                    <HardDrive size={12} />
                     <span>OPFS Storage</span>
                   </div>
                   
@@ -267,7 +266,7 @@ const StorageManager = ({ isOpen, onClose }) => {
                             </p>
                             <p className="text-xs text-slate-500">
                               {cachedInfo ? formatBytes(cachedInfo.size) : model?.size || 'Unknown size'}
-                              {cachedInfo?.fileCount && ` • ${cachedInfo.fileCount} archivos`}
+                              {cachedInfo?.fileCount && ` • ${cachedInfo.fileCount} files`}
                             </p>
                           </div>
                         </div>
@@ -280,7 +279,7 @@ const StorageManager = ({ isOpen, onClose }) => {
                               ? 'bg-rose-500/20 text-rose-400'
                               : 'opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-rose-400'
                           }`}
-                          title="Eliminar del caché"
+                          title="Delete from cache"
                         >
                           {isDeleting === modelId ? (
                             <Loader2 size={16} className="animate-spin" />
@@ -301,7 +300,7 @@ const StorageManager = ({ isOpen, onClose }) => {
         <div className="p-4 border-t border-white/10 bg-black/20">
           <div className="flex items-center justify-between">
             <p className="text-xs text-slate-500">
-              {totalCachedItems} modelo{totalCachedItems !== 1 ? 's' : ''} en caché
+              {totalCachedItems} cached model{totalCachedItems !== 1 ? 's' : ''}
             </p>
             
             {totalCachedItems > 0 && (
@@ -316,7 +315,7 @@ const StorageManager = ({ isOpen, onClose }) => {
                 ) : (
                   <AlertTriangle size={12} />
                 )}
-                Eliminar Todo
+                Delete All
               </button>
             )}
           </div>

@@ -1,9 +1,9 @@
 import { memo, useState } from 'react';
-import { 
-  Sparkles, 
-  Box, 
-  Cpu, 
-  Image, 
+import {
+  Sparkles,
+  Box,
+  Cpu,
+  Image,
   Layers,
   Zap,
   Github,
@@ -16,6 +16,7 @@ import {
   Dices,
   Maximize,
   Scissors,
+  Paintbrush,
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
@@ -67,6 +68,13 @@ const nodeCategories = [
         icon: ImagePlus,
         color: 'rose',
         description: 'Transform existing images'
+      },
+      {
+        type: 'inpaintingNode',
+        label: 'Inpainting',
+        icon: Paintbrush,
+        color: 'violet',
+        description: 'Edit specific areas with mask'
       },
       {
         type: 'seedNode',
@@ -130,7 +138,7 @@ const Sidebar = ({ onDragStart, galleryImages = [], onDeleteImage, onClearGaller
             <Layers size={22} className="text-white" />
           </div>
           <div>
-            <h1 className="font-semibold text-lg text-white tracking-tight" 
+            <h1 className="font-semibold text-lg text-white tracking-tight"
               style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
               CozyUI
             </h1>
@@ -144,7 +152,7 @@ const Sidebar = ({ onDragStart, galleryImages = [], onDeleteImage, onClearGaller
         <div className="flex items-center gap-2">
           <Zap size={14} className={
             webgpu.checking ? 'text-amber-400 animate-pulse' :
-            webgpu.supported ? 'text-emerald-400' : 'text-rose-400'
+              webgpu.supported ? 'text-emerald-400' : 'text-rose-400'
           } />
           <span className="text-xs text-slate-400">WebGPU Status:</span>
           {webgpu.checking ? (
@@ -171,7 +179,7 @@ const Sidebar = ({ onDragStart, galleryImages = [], onDeleteImage, onClearGaller
         <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
           Available Nodes
         </h2>
-        
+
         <div className="space-y-4">
           {nodeCategories.map((category) => (
             <div key={category.name}>
@@ -189,7 +197,7 @@ const Sidebar = ({ onDragStart, galleryImages = [], onDeleteImage, onClearGaller
                 {category.name}
                 <span className="text-slate-600 font-normal">({category.nodes.length})</span>
               </button>
-              
+
               {/* Category Nodes */}
               {expandedCategories[category.name] && (
                 <div className="space-y-2 ml-1">
@@ -245,7 +253,7 @@ const Sidebar = ({ onDragStart, galleryImages = [], onDeleteImage, onClearGaller
       </div>
 
       {/* Gallery */}
-      <Gallery 
+      <Gallery
         images={galleryImages}
         onDelete={onDeleteImage}
         onClear={onClearGallery}
@@ -253,9 +261,9 @@ const Sidebar = ({ onDragStart, galleryImages = [], onDeleteImage, onClearGaller
 
       {/* Footer */}
       <div className="p-4 border-t border-white/5">
-        <a 
-          href="https://github.com" 
-          target="_blank" 
+        <a
+          href="https://github.com/PitiGo/CozyUI"
+          target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors"
         >

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { Image, Download, Maximize2 } from 'lucide-react';
@@ -6,6 +6,19 @@ import { Image, Download, Maximize2 } from 'lucide-react';
 const ImageDisplayNode = ({ id, data, isConnectable, selected }) => {
   const imageUrl = data.imageUrl;
   const isLoading = data.isLoading || false;
+  const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
+  const imgRef = useRef(null);
+
+  // Track real image dimensions
+  useEffect(() => {
+    if (!imageUrl) {
+      setDimensions({ w: 0, h: 0 });
+      return;
+    }
+    const img = new window.Image();
+    img.onload = () => setDimensions({ w: img.naturalWidth, h: img.naturalHeight });
+    img.src = imageUrl;
+  }, [imageUrl]);
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -79,9 +92,9 @@ const ImageDisplayNode = ({ id, data, isConnectable, selected }) => {
         </div>
 
         {/* Image Info */}
-        {imageUrl && (
+        {imageUrl && dimensions.w > 0 && (
           <div className="flex justify-between text-xs text-slate-500">
-            <span>512 × 512</span>
+            <span>{dimensions.w} × {dimensions.h}</span>
             <span>PNG</span>
           </div>
         )}

@@ -157,7 +157,12 @@
 - [ ] Modo colaborativo (múltiples usuarios)
 - [ ] Generación de video (AnimateDiff)
 - [ ] Upscaling con Real-ESRGAN
-- [ ] Inpainting/Outpainting
+- [x] **Inpainting** - ✅ COMPLETADO (Diciembre 2024)
+  - Editor de máscaras con Canvas API
+  - Brush/Eraser tools con tamaño ajustable
+  - Vista previa de máscara con opacidad configurable
+  - Integración con galería y drag & drop
+- [ ] Outpainting
 - [ ] ControlNet (pose, depth, canny)
 - [ ] Integración con APIs de pago (Replicate, RunPod)
 - [ ] Plugin system para nodos custom

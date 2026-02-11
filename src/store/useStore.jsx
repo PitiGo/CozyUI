@@ -1,51 +1,81 @@
-import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, useRef, useMemo } from 'react';
 import { modelDownloader } from '../services/modelDownloader.js';
 import { opfsService, browserCacheService } from '../services/opfsService.js';
+import { txt2imgService } from '../services/txt2imgService.js';
+import { globalToast } from '../utils/globalToast.js';
+import { downloadPersistence, cachedModelsRegistry } from '../services/downloadPersistence.js';
+import { releaseMemory } from '../services/memoryGuard.js';
 
 const StoreContext = createContext(null);
 
 // Available models list (exported for use in components)
-// Cloud API for text-to-image (reliable)
-// Local WebGPU for image enhancement (super-resolution)
+// 100% Local – NO APIs – Uses web-txt2img + WebGPU
 export const AVAILABLE_MODELS = [
-  // === CLOUD API MODELS (Text-to-Image) ===
+  // ═══════════════════════════════════════════════════════════════════
+  // FUNCIONALES – 100% Local via web-txt2img + WebGPU
+  // ═══════════════════════════════════════════════════════════════════
   {
-    id: 'flux',
-    name: 'Flux',
-    repo: 'flux',
-    engine: 'api',
-    description: '🎨 Best quality'
+    id: 'sd-turbo',
+    name: 'SD-Turbo',
+    repo: 'sd-turbo',                  // web-txt2img model ID
+    engine: 'local-txt2img',           // uses txt2imgService
+    description: '🖥️ 100% Local · 1-step · Fast',
+    size: '~1.7GB',
+    local: true,
+    status: 'working',                 // ✅ Confirmed working
+    note: 'Single-step Stable Diffusion via ONNX Runtime Web + WebGPU'
   },
   {
-    id: 'turbo',
-    name: 'Turbo',
-    repo: 'turbo',
-    engine: 'api',
-    description: '⚡ Fastest'
+    id: 'janus-pro-1b',
+    name: 'Janus-Pro 1B',
+    repo: 'janus-pro-1b',             // web-txt2img model ID
+    engine: 'local-txt2img',
+    description: '🖥️ 100% Local · Multimodal · 1B',
+    size: '~1.5GB',
+    local: true,
+    status: 'working',                 // ✅ Confirmed working
+    note: 'DeepSeek Janus-Pro via Transformers.js + WebGPU'
   },
+  // ═══════════════════════════════════════════════════════════════════
+  // FUNCIONAL – Super-Resolution local (Transformers.js worker)
+  // ═══════════════════════════════════════════════════════════════════
   {
-    id: 'flux-realism',
-    name: 'Realism',
-    repo: 'flux-realism',
-    engine: 'api',
-    description: '📸 Photorealistic'
+    id: 'local-super-resolution',
+    name: 'Image Enhancer (2x)',
+    repo: 'Xenova/swin2SR-classical-sr-x2-64',
+    engine: 'local-enhance',           // uses existing worker
+    description: '🖥️ 100% Local · Super-Resolution',
+    size: '~50MB',
+    local: true,
+    status: 'working',
+    note: 'Image enhancement only – not text-to-image'
   },
+  // ═══════════════════════════════════════════════════════════════════
+  // PENDING – Not yet available in compatible format
+  // ═══════════════════════════════════════════════════════════════════
   {
-    id: 'flux-anime',
-    name: 'Anime',
-    repo: 'flux-anime',
-    engine: 'api',
-    description: '🎌 Anime style'
-  },
-  // === LOCAL (Coming Soon) ===
-  {
-    id: 'local-coming-soon',
-    name: 'Local WebGPU',
+    id: 'sdxl-turbo-pending',
+    name: 'SDXL-Turbo (Pending)',
     repo: '',
-    engine: 'local',
-    description: '🖥️ Coming when ONNX models are ready',
+    engine: 'pending',
+    description: 'Pending – ONNX not available',
+    size: '~3GB',
+    local: true,
+    status: 'pending',
     disabled: true,
-    comingSoon: true
+    note: 'Awaiting browser-compatible ONNX conversion'
+  },
+  {
+    id: 'sd-1.5-pending',
+    name: 'SD 1.5 Local (Pending)',
+    repo: '',
+    engine: 'pending',
+    description: 'Pending – ONNX not available',
+    size: '~2GB',
+    local: true,
+    status: 'pending',
+    disabled: true,
+    note: 'Awaiting Transformers.js-compatible ONNX models'
   }
 ];
 
@@ -62,8 +92,13 @@ const initialState = {
     repo: null,
     status: 'idle', // idle, loading, loaded, error
     progress: 0,
+    message: '',
+    bytesDownloaded: 0,
+    totalBytesExpected: 0,
     error: null
   },
+  // Interrupted download from previous session (populated on startup)
+  interruptedDownload: null,
   // Generation state
   generation: {
     status: 'idle', // idle, generating, complete, error
@@ -101,8 +136,12 @@ function reducer(state, action) {
         ...state,
         model: {
           ...state.model,
+          id: action.payload.modelId ?? state.model.id,
           status: 'loading',
-          progress: action.payload.progress
+          progress: action.payload.progress,
+          message: action.payload.message ?? state.model.message ?? '',
+          bytesDownloaded: action.payload.bytesDownloaded ?? state.model.bytesDownloaded ?? 0,
+          totalBytesExpected: action.payload.totalBytesExpected ?? state.model.totalBytesExpected ?? 0,
         }
       };
     
@@ -129,6 +168,10 @@ function reducer(state, action) {
       };
     
     case 'GENERATION_STARTED':
+      // Revoke previous blob URL to free memory before new generation
+      if (state.generation.imageUrl && state.generation.imageUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(state.generation.imageUrl); } catch (_) { /* ignore */ }
+      }
       return {
         ...state,
         generation: {
@@ -149,6 +192,10 @@ function reducer(state, action) {
       };
     
     case 'GENERATION_COMPLETE':
+      // Revoke previous blob URL to prevent memory leak
+      if (state.generation.imageUrl && state.generation.imageUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(state.generation.imageUrl); } catch (_) { /* ignore */ }
+      }
       return {
         ...state,
         generation: {
@@ -170,6 +217,10 @@ function reducer(state, action) {
       };
     
     case 'RESET_GENERATION':
+      // Revoke previous blob URL to free memory
+      if (state.generation.imageUrl && state.generation.imageUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(state.generation.imageUrl); } catch (_) { /* ignore */ }
+      }
       return {
         ...state,
         generation: {
@@ -208,6 +259,24 @@ function reducer(state, action) {
           isLoadingCache: action.payload
         }
       };
+
+    case 'SET_INTERRUPTED_DOWNLOAD':
+      return {
+        ...state,
+        interruptedDownload: action.payload,
+      };
+
+    case 'CLEAR_INTERRUPTED_DOWNLOAD':
+      return {
+        ...state,
+        interruptedDownload: null,
+      };
+
+    case 'MODEL_RESET':
+      return {
+        ...state,
+        model: { ...initialState.model },
+      };
     
     default:
       return state;
@@ -217,6 +286,8 @@ function reducer(state, action) {
 export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const workerRef = useRef(null);
+  const stateRef = useRef(state);
+  stateRef.current = state; // always points to latest state
   const bgRemovalCallbacksRef = useRef({});
   const bgRemovalIdRef = useRef(0);
 
@@ -315,13 +386,108 @@ export function StoreProvider({ children }) {
     
     checkCacheStatus();
 
+    // Check for interrupted downloads from previous session
+    const interrupted = downloadPersistence.getInterruptedDownload();
+    if (interrupted) {
+      console.log(`⚠️ Found interrupted download: ${interrupted.modelId} (${interrupted.pct}% done)`);
+      dispatch({ type: 'SET_INTERRUPTED_DOWNLOAD', payload: interrupted });
+    }
+
     return () => {
       worker.terminate();
+      txt2imgService.destroy();
     };
   }, []);
 
   // Actions
-  const loadModel = useCallback((modelId, modelRepo, engine = 'api') => {
+  const loadModel = useCallback(async (modelId, modelRepo, engine = 'local-txt2img') => {
+    // ── Local text-to-image via web-txt2img ──
+    if (engine === 'local-txt2img') {
+      // Only reset to 0 if no progress is already shown (avoids flashing 0% on resume)
+      const cur = stateRef.current.model;
+      const isResuming = cur.id === modelId && cur.status === 'loading' && cur.progress > 0;
+      if (!isResuming) {
+        // Full reset — clears bytes/message from any previous model
+        dispatch({
+          type: 'MODEL_LOADING',
+          payload: {
+            modelId,
+            progress: 0,
+            message: '',
+            bytesDownloaded: 0,
+            totalBytesExpected: 0,
+          }
+        });
+      }
+
+      // Persist that a download is in progress (survives tab close)
+      downloadPersistence.markStarted({ modelId, modelRepo, engine });
+
+      try {
+        await txt2imgService.loadModel(modelRepo, (progress) => {
+          dispatch({
+            type: 'MODEL_LOADING',
+            payload: {
+              modelId,
+              progress: progress.pct || 0,
+              message: progress.message || '',
+              bytesDownloaded: progress.bytesDownloaded || 0,
+              totalBytesExpected: progress.totalBytesExpected || 0,
+            }
+          });
+          // Persist progress snapshot (throttled internally)
+          downloadPersistence.updateProgress({
+            pct: progress.pct || 0,
+            bytesDownloaded: progress.bytesDownloaded || 0,
+            totalBytesExpected: progress.totalBytesExpected || 0,
+            message: progress.message || '',
+          });
+        });
+
+        // Download complete — clear persistence & mark as cached
+        downloadPersistence.markComplete();
+        cachedModelsRegistry.markCached(modelId);
+
+        dispatch({
+          type: 'MODEL_LOADED',
+          payload: { modelId, modelRepo, engine: 'local-txt2img' }
+        });
+      } catch (error) {
+        // Don't replace loading state with error when user double-clicks "already loading"
+        const isAlreadyLoading = /already being loaded|please wait/i.test(error.message);
+        if (isAlreadyLoading) {
+          globalToast.info('Model is already loading, please wait.');
+          return;
+        }
+        // Persist the error so we can offer resume on next visit
+        downloadPersistence.markError(error.message);
+        dispatch({
+          type: 'MODEL_ERROR',
+          payload: { modelId, error: error.message }
+        });
+      }
+      return;
+    }
+
+    // ── Local enhancement / bg-removal via existing worker ──
+    if (engine === 'local-enhance' && workerRef.current) {
+      workerRef.current.postMessage({
+        type: 'LOAD_MODEL',
+        payload: { modelId, modelRepo, engine: 'local' }
+      });
+      return;
+    }
+
+    // ── Pending models – show info ──
+    if (engine === 'pending') {
+      dispatch({
+        type: 'MODEL_ERROR',
+        payload: { modelId, error: 'This model is not available yet. Please use SD-Turbo or Janus-Pro.' }
+      });
+      return;
+    }
+
+    // Fallback to worker
     if (workerRef.current) {
       workerRef.current.postMessage({
         type: 'LOAD_MODEL',
@@ -330,7 +496,50 @@ export function StoreProvider({ children }) {
     }
   }, []);
 
-  const generate = useCallback((config) => {
+  const generate = useCallback(async (config) => {
+    // Find the selected model to determine engine
+    const selectedModel = AVAILABLE_MODELS.find(m => m.id === config.modelId) || null;
+    const engine = selectedModel?.engine || 'local-txt2img';
+
+    // ── Local text-to-image via web-txt2img ──
+    if (engine === 'local-txt2img' || txt2imgService.currentModelId) {
+      dispatch({ type: 'GENERATION_STARTED', payload: { prompt: config.prompt } });
+
+      try {
+        const result = await txt2imgService.generate(
+          {
+            prompt: config.prompt,
+            seed: config.seed ?? -1,
+            width: config.width ?? 512,
+            height: config.height ?? 512,
+          },
+          (progress) => {
+            dispatch({
+              type: 'GENERATION_PROGRESS',
+              payload: { progress: progress.pct || 0 }
+            });
+          }
+        );
+
+        dispatch({
+          type: 'GENERATION_COMPLETE',
+          payload: {
+            imageUrl: result.imageUrl,
+            mode: 'local',
+            model: result.model,
+            seed: result.seed,
+          }
+        });
+      } catch (error) {
+        dispatch({
+          type: 'GENERATION_ERROR',
+          payload: { error: error.message }
+        });
+      }
+      return;
+    }
+
+    // ── Fallback to existing worker ──
     if (workerRef.current) {
       workerRef.current.postMessage({
         type: 'GENERATE',
@@ -433,6 +642,71 @@ export function StoreProvider({ children }) {
     return success;
   }, [refreshCacheStatus]);
 
+  // Resume an interrupted download from a previous session
+  const resumeInterruptedDownload = useCallback(async () => {
+    const interrupted = downloadPersistence.getInterruptedDownload();
+    if (!interrupted) return;
+    dispatch({ type: 'CLEAR_INTERRUPTED_DOWNLOAD' });
+
+    // Pre-populate the UI with the last known progress so it doesn't flash "0%"
+    dispatch({
+      type: 'MODEL_LOADING',
+      payload: {
+        modelId: interrupted.modelId,
+        progress: interrupted.pct || 0,
+        message: 'Resuming download — cached files will load instantly...',
+        bytesDownloaded: interrupted.bytesDownloaded || 0,
+        totalBytesExpected: interrupted.totalBytesExpected || 0,
+      }
+    });
+
+    // Resume the download (cached files will load instantly from Cache Storage)
+    await loadModel(interrupted.modelId, interrupted.modelRepo, interrupted.engine);
+  }, [loadModel]);
+
+  // Dismiss the interrupted download prompt
+  const dismissInterruptedDownload = useCallback(() => {
+    downloadPersistence.clear();
+    dispatch({ type: 'CLEAR_INTERRUPTED_DOWNLOAD' });
+  }, []);
+
+  // Purge a specific model's cached download files (web-txt2img Cache Storage)
+  const purgeModelDownload = useCallback(async (modelId) => {
+    try {
+      // Unload if it's the active model
+      if (txt2imgService.currentModelId === modelId) {
+        await txt2imgService.unload();
+      }
+      await txt2imgService.purge(modelId);
+      downloadPersistence.clear();
+      cachedModelsRegistry.removeCached(modelId);
+      await releaseMemory();
+      dispatch({ type: 'MODEL_RESET' });
+      globalToast.success(`Cache for "${modelId}" cleared. Memory freed.`);
+      await refreshCacheStatus();
+    } catch (err) {
+      console.error('Error purging model cache:', err);
+      globalToast.error('Failed to clear cache: ' + err.message);
+    }
+  }, [refreshCacheStatus]);
+
+  // Purge ALL web-txt2img cached downloads + unload current model
+  const purgeAllDownloads = useCallback(async () => {
+    try {
+      await txt2imgService.destroy();
+      await txt2imgService.purgeAll();
+      downloadPersistence.clear();
+      cachedModelsRegistry.clearAll();
+      await releaseMemory();
+      dispatch({ type: 'MODEL_RESET' });
+      globalToast.success('All download caches cleared. Memory freed.');
+      await refreshCacheStatus();
+    } catch (err) {
+      console.error('Error purging all caches:', err);
+      globalToast.error('Failed to clear caches: ' + err.message);
+    }
+  }, [refreshCacheStatus]);
+
   const value = {
     state,
     dispatch,
@@ -445,7 +719,11 @@ export function StoreProvider({ children }) {
       deleteModelFromCache,
       clearAllCache,
       deleteBrowserCachedModel,
-      clearAllBrowserCache
+      clearAllBrowserCache,
+      resumeInterruptedDownload,
+      dismissInterruptedDownload,
+      purgeModelDownload,
+      purgeAllDownloads,
     }
   };
 
