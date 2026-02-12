@@ -247,7 +247,7 @@ const Sidebar = ({ onDragStart, galleryImages = [], onDeleteImage, onClearGaller
           </div>
           <div className="text-xs text-slate-500 space-y-1">
             <p><kbd className="px-1.5 py-0.5 bg-black/30 rounded text-slate-400">⌘/Ctrl + Enter</kbd> Generate</p>
-            <p><kbd className="px-1.5 py-0.5 bg-black/30 rounded text-slate-400">⌘/Ctrl + R</kbd> Reset</p>
+            <p><kbd className="px-1.5 py-0.5 bg-black/30 rounded text-slate-400">⌘/Ctrl + Shift + R</kbd> Reset</p>
           </div>
         </div>
       </div>

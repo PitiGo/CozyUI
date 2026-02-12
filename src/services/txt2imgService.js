@@ -89,11 +89,11 @@ class Txt2ImgService {
       if (ort?.env?.webgl) {
         ort.env.webgl.pack = false;
       }
-    } catch (_) { /* ort may not be available for janus models */ }
+    } catch { /* ort may not be available for janus models */ }
 
     // Track timing to detect cache loads (files load in < 2s each from cache)
     let firstProgressTime = 0;
-    let lastPct = 0;
+    let lastPct = 0; // eslint-disable-line no-unused-vars
     let likelyCached = false;
 
     const result = await libLoadModel(modelId, {
@@ -152,7 +152,7 @@ class Txt2ImgService {
       if (this.currentModelId && this.currentModelId !== modelId) {
         console.log(`🔄 Unloading previous model to free memory: ${this.currentModelId}`);
         onProgress?.({ phase: 'unloading', pct: 0, message: `Unloading ${this.currentModelId} to free memory...` });
-        try { await libUnloadModel(this.currentModelId); } catch (_) { /* ignore */ }
+        try { await libUnloadModel(this.currentModelId); } catch { /* ignore */ }
         this.currentModelId = null;
         // Give the browser time to reclaim memory
         await releaseMemory();
@@ -291,26 +291,26 @@ class Txt2ImgService {
     try {
       await libUnloadModel(this.currentModelId);
       this.currentModelId = null;
-    } catch (_) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   // ── Purge cached model data ──────────────────────────────────────────
   async purge(modelId) {
     try {
       await libPurgeModelCache(modelId);
-    } catch (_) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   async purgeAll() {
     try {
       await libPurgeAllCaches();
-    } catch (_) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   // ── Destroy (full cleanup) ───────────────────────────────────────────
   async destroy() {
     if (this.currentModelId) {
-      try { await libUnloadModel(this.currentModelId); } catch (_) { /* ignore */ }
+      try { await libUnloadModel(this.currentModelId); } catch { /* ignore */ }
     }
     this.currentModelId = null;
     this.isLoading = false;

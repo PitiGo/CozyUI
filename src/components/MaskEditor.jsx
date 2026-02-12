@@ -21,6 +21,14 @@ const MaskEditor = ({
   const [cursorPos, setCursorPos] = useState(null);
   const imageRef = useRef(null);
   const lastPointRef = useRef(null);
+  const lastBlobUrlRef = useRef(null);
+  const maskChangeTimerRef = useRef(null);
+
+  // Stable ref for onMaskChange to avoid re-running the image load effect
+  const onMaskChangeRef = useRef(onMaskChange);
+  useEffect(() => {
+    onMaskChangeRef.current = onMaskChange;
+  });
 
   // Load image and initialize canvas
   useEffect(() => {
@@ -51,10 +59,12 @@ const MaskEditor = ({
       }
 
       // Trigger initial mask change
-      if (onMaskChange) {
+      if (onMaskChangeRef.current) {
         canvas.toBlob((blob) => {
+          if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
           const url = URL.createObjectURL(blob);
-          onMaskChange(url);
+          lastBlobUrlRef.current = url;
+          onMaskChangeRef.current(url);
         });
       }
     };
@@ -131,12 +141,17 @@ const MaskEditor = ({
     // IMMEDIATELY update the overlay for visual feedback
     updateOverlay();
 
-    // Trigger mask change callback
+    // Throttle mask change callback to avoid excessive blob creation
     if (onMaskChange) {
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
-        onMaskChange(url);
-      });
+      if (maskChangeTimerRef.current) clearTimeout(maskChangeTimerRef.current);
+      maskChangeTimerRef.current = setTimeout(() => {
+        canvas.toBlob((blob) => {
+          if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
+          const url = URL.createObjectURL(blob);
+          lastBlobUrlRef.current = url;
+          onMaskChange(url);
+        });
+      }, 100);
     }
   }, [tool, brushSize, onMaskChange, updateOverlay]);
 
@@ -183,8 +198,12 @@ const MaskEditor = ({
     setCursorPos(null); // Hide cursor indicator
   }, []);
 
-  const handleMouseEnter = useCallback(() => {
-    // Cursor indicator will be shown by handleMouseMove
+  // Cleanup blob URLs and timers on unmount
+  useEffect(() => {
+    return () => {
+      if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
+      if (maskChangeTimerRef.current) clearTimeout(maskChangeTimerRef.current);
+    };
   }, []);
 
   // Clear mask (reset to black)
@@ -201,7 +220,9 @@ const MaskEditor = ({
 
     if (onMaskChange) {
       canvas.toBlob((blob) => {
+        if (lastBlobUrlRef.current) URL.revokeObjectURL(lastBlobUrlRef.current);
         const url = URL.createObjectURL(blob);
+        lastBlobUrlRef.current = url;
         onMaskChange(url);
       });
     }
@@ -236,8 +257,8 @@ const MaskEditor = ({
           <button
             onClick={() => setTool('brush')}
             className={`p-2 rounded-lg transition-all duration-200 ${tool === 'brush'
-                ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/50 scale-110 ring-2 ring-purple-400/50'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-purple-300'
+              ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/50 scale-110 ring-2 ring-purple-400/50'
+              : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-purple-300'
               }`}
             title="Brush (Paint mask)"
           >
@@ -246,8 +267,8 @@ const MaskEditor = ({
           <button
             onClick={() => setTool('eraser')}
             className={`p-2 rounded-lg transition-all duration-200 ${tool === 'eraser'
-                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/50 scale-110 ring-2 ring-rose-400/50'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-rose-300'
+              ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/50 scale-110 ring-2 ring-rose-400/50'
+              : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-rose-300'
               }`}
             title="Eraser (Remove mask)"
           >
@@ -340,7 +361,6 @@ const MaskEditor = ({
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
-            onMouseEnter={handleMouseEnter}
             className="absolute inset-0 w-full h-full cursor-none"
             style={{ touchAction: 'none' }}
           />

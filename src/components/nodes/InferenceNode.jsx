@@ -17,27 +17,26 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
 
   const handleGenerate = useCallback((e) => {
     e.stopPropagation(); // Prevent React Flow from intercepting the click
-    console.log('🚀 Generate clicked! (100% local generation)');
-    
+
     // Find connected nodes via edges
-    const promptEdge = edges.find(e => e.target === id && e.targetHandle === 'prompt-in');
-    const imageEdge = edges.find(e => e.target === id && e.targetHandle === 'image-in');
-    const modelEdge = edges.find(e => e.target === id && e.targetHandle === 'model-in');
-    
+    const promptEdge = edges.find(edge => edge.target === id && edge.targetHandle === 'prompt-in');
+    const imageEdge = edges.find(edge => edge.target === id && edge.targetHandle === 'image-in');
+    const modelEdge = edges.find(edge => edge.target === id && edge.targetHandle === 'model-in');
+
     const promptNode = promptEdge ? nodes.find(n => n.id === promptEdge.source) : null;
     const img2imgNode = imageEdge ? nodes.find(n => n.id === imageEdge.source) : null;
     const modelNode = modelEdge ? nodes.find(n => n.id === modelEdge.source) : null;
-    
+
     // Fallback: if no connection, try to find by type (for backward compatibility)
     const promptNodeByType = promptNode || nodes.find(n => n.type === 'promptNode');
     const modelNodeByType = modelNode || nodes.find(n => n.type === 'modelLoaderNode');
     const img2imgNodeByType = img2imgNode || nodes.find(n => n.type === 'img2imgNode');
-    
+
     if (!promptNodeByType) {
       globalToast.error('Connect a Text Prompt node to the prompt input (top handle)');
       return;
     }
-    
+
     if (!modelNodeByType) {
       globalToast.error('Connect a Model Loader node to the model input (bottom handle)');
       return;
@@ -58,25 +57,20 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
     // Check if image-to-image is being used (from connected node or by type)
     const sourceImage = (img2imgNode || img2imgNodeByType)?.data?.imageUrl || null;
     const strength = (img2imgNode || img2imgNodeByType)?.data?.strength ?? 0.75;
-    
+
     if (sourceImage) {
-      console.log('🖼️ Image-to-Image mode detected');
       if (!img2imgNode) {
-        console.log('💡 Tip: Connect Image to Image node to the middle handle for better workflow clarity');
+        // Tip: connecting via the image-in handle is the recommended approach
       }
     }
 
     // Configure model if needed
     if (state.model.status !== 'loaded' || state.model.id !== selectedModel.id) {
-      console.log('🖥️ Loading model:', selectedModel.name);
       actions.loadModel(selectedModel.id, selectedModel.repo, selectedModel.engine || 'local-txt2img');
     }
-    
+
     // Generate (100% local)
-    console.log('🎨 Generating image (100% local)...');
-    console.log('   Model:', selectedModel.name);
-    console.log('   Prompt:', prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''));
-    
+
     actions.generate({
       modelId: selectedModel.id,
       prompt: prompt,
@@ -89,7 +83,7 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
       sourceImage: sourceImage,
       strength: strength,
     });
-  }, [nodes, edges, data, state.model, actions]);
+  }, [id, nodes, edges, data, state.model, actions]);
 
   const steps = data.steps || 20;
   const guidanceScale = data.guidanceScale || 7.5;
@@ -100,8 +94,8 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
   const progress = data.progress || 0;
 
   return (
-    <BaseNode 
-      title="Generate" 
+    <BaseNode
+      title="Generate"
       icon={<Cpu size={16} />}
       color="amber"
       status={isGenerating ? 'loading' : 'idle'}
@@ -238,7 +232,7 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
               <span>Generating... {progress}%</span>
             </div>
             <div className="h-1.5 bg-black/30 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
@@ -254,8 +248,8 @@ const InferenceNode = ({ id, data, isConnectable, selected }) => {
             w-full py-2.5 rounded-lg font-medium text-sm
             flex items-center justify-center gap-2
             transition-all duration-200
-            ${isGenerating 
-              ? 'bg-slate-700 text-slate-400 cursor-not-allowed' 
+            ${isGenerating
+              ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
               : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-lg hover:shadow-amber-500/30 hover:scale-[1.02]'}
           `}
         >

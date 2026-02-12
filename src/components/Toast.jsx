@@ -1,8 +1,8 @@
 import { memo, useEffect, useState, useCallback, useRef } from 'react';
-import { 
-  CheckCircle2, 
-  AlertCircle, 
-  Info, 
+import {
+  CheckCircle2,
+  AlertCircle,
+  Info,
   X,
   Loader2
 } from 'lucide-react';
@@ -43,10 +43,12 @@ const Toast = ({ id, type = 'info', message, duration = 4000, onClose }) => {
   const [isLeaving, setIsLeaving] = useState(false);
   const onCloseRef = useRef(onClose);
   const idRef = useRef(id);
-  
-  // Keep refs updated
-  onCloseRef.current = onClose;
-  idRef.current = id;
+
+  // Keep refs updated (must be inside an effect in React 19)
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    idRef.current = id;
+  });
 
   const config = toastTypes[type] || toastTypes.info;
   const Icon = config.icon;
@@ -82,9 +84,9 @@ const Toast = ({ id, type = 'info', message, duration = 4000, onClose }) => {
         ${isVisible && !isLeaving ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
       `}
     >
-      <Icon 
-        size={18} 
-        className={`${config.iconColor} ${type === 'loading' ? 'animate-spin' : ''} shrink-0`} 
+      <Icon
+        size={18}
+        className={`${config.iconColor} ${type === 'loading' ? 'animate-spin' : ''} shrink-0`}
       />
       <p className={`text-sm ${config.text} flex-1`}>{message}</p>
       {type !== 'loading' && (

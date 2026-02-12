@@ -1,10 +1,10 @@
 import { memo } from 'react';
 import { NodeResizer } from '@xyflow/react';
 
-const BaseNode = ({ 
-  children, 
-  title, 
-  icon, 
+const BaseNode = ({
+  children,
+  title,
+  icon,
   color = 'indigo',
   status = 'idle',
   selected = false,
@@ -72,7 +72,7 @@ const BaseNode = ({
   };
 
   const variant = colorVariants[color] || colorVariants.indigo;
-  
+
   const statusStyles = {
     idle: '',
     loading: 'animate-pulse',
@@ -81,9 +81,9 @@ const BaseNode = ({
   };
 
   return (
-    <div 
+    <div
       className={`
-        min-w-[${minWidth}px] rounded-xl border-2 
+        min-w-0 rounded-xl border-2 
         ${variant.border} ${variant.bg}
         bg-[#16161f]/95 backdrop-blur-sm
         shadow-xl ${variant.glow}
@@ -126,7 +126,7 @@ const BaseNode = ({
           {title}
         </span>
       </div>
-      
+
       {/* Content */}
       <div className="p-3 overflow-auto" style={{ maxHeight: 'calc(100% - 40px)' }}>
         {children}

@@ -11,10 +11,10 @@ const generateId = () => `img_${Date.now()}_${++imageIdCounter}_${Math.random().
 async function urlToBase64(url) {
   try {
     if (url.startsWith('data:')) return url;
-    
+
     const response = await fetch(url);
     const blob = await response.blob();
-    
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
@@ -35,7 +35,6 @@ export function useGallery() {
       if (saved) {
         const parsed = JSON.parse(saved);
         const validImages = parsed.filter(img => img && img.url && img.id && img.url.startsWith('data:'));
-        console.log(`📂 Loaded ${validImages.length} images from gallery`);
         return validImages;
       }
     } catch (error) {
@@ -51,21 +50,18 @@ export function useGallery() {
   // Save to localStorage when images change
   useEffect(() => {
     const currentData = JSON.stringify(images);
-    
+
     // Only save if data actually changed
     if (currentData === lastSavedRef.current) return;
-    
-    // Don't save empty array if we just loaded
-    if (images.length === 0 && lastSavedRef.current !== '[]') {
-      console.log('⏭️ Skipping save of empty array');
-      return;
-    }
-    
+
     lastSavedRef.current = currentData;
-    
+
     try {
-      console.log('💾 Saving gallery:', images.length, 'images');
-      localStorage.setItem(STORAGE_KEY, currentData);
+      if (images.length === 0) {
+        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        localStorage.setItem(STORAGE_KEY, currentData);
+      }
     } catch (error) {
       console.error('Error saving gallery:', error);
       if (error.name === 'QuotaExceededError') {
@@ -79,19 +75,18 @@ export function useGallery() {
   const addImage = useCallback(async (imageData) => {
     if (isAddingRef.current) return null;
     isAddingRef.current = true;
-    
+
     try {
-      console.log('🖼️ Adding image to gallery...');
-      
+
       const base64Url = await urlToBase64(imageData.url);
-      
+
       if (!base64Url || !base64Url.startsWith('data:')) {
         console.error('❌ Failed to convert to base64');
         return null;
       }
-      
-      console.log('✅ Converted to base64:', Math.round(base64Url.length / 1024), 'KB');
-      
+
+
+
       const newImage = {
         id: generateId(),
         url: base64Url,
@@ -106,7 +101,6 @@ export function useGallery() {
 
       setImages(prev => {
         const updated = [newImage, ...prev].slice(0, MAX_IMAGES);
-        console.log('🖼️ Gallery now has', updated.length, 'images');
         return updated;
       });
 

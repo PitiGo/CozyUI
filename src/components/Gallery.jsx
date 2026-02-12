@@ -1,9 +1,9 @@
-import { memo, useState, useCallback } from 'react';
-import { 
-  Image, 
-  Download, 
-  Trash2, 
-  Maximize2, 
+import { memo, useState, useCallback, useEffect } from 'react';
+import {
+  Image,
+  Download,
+  Trash2,
+  Maximize2,
   X,
   Clock,
   Sparkles,
@@ -16,6 +16,16 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
+
+  // Close lightbox on Escape key
+  useEffect(() => {
+    if (!selectedImage) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setSelectedImage(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImage]);
 
   const handleDragStart = useCallback((e, image) => {
     setDraggingId(image.id);
@@ -43,9 +53,9 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('es-ES', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -116,8 +126,8 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
                     group relative aspect-square rounded-lg overflow-hidden 
                     border bg-black/30 cursor-grab active:cursor-grabbing
                     transition-all
-                    ${draggingId === image.id 
-                      ? 'border-rose-500 opacity-50 scale-95' 
+                    ${draggingId === image.id
+                      ? 'border-rose-500 opacity-50 scale-95'
                       : 'border-white/10 hover:border-rose-500/50'}
                   `}
                   onClick={() => setSelectedImage(image)}
@@ -127,12 +137,12 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
                     alt={image.prompt?.slice(0, 30) || 'Generated'}
                     className="w-full h-full object-cover pointer-events-none"
                   />
-                  
+
                   {/* Drag Indicator */}
                   <div className="absolute top-1 right-1 p-1 bg-black/60 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                     <GripVertical size={12} className="text-white/70" />
                   </div>
-                  
+
                   {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                     <button
@@ -167,7 +177,7 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
                     <Clock size={8} />
                     {formatTime(image.timestamp)}
                   </div>
-                  
+
                   {/* Drag hint tooltip */}
                   <div className="absolute bottom-1 right-1 text-[9px] text-rose-400/80 bg-black/60 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                     Drag to node
@@ -181,11 +191,11 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
 
       {/* Lightbox Modal */}
       {selectedImage && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setSelectedImage(null)}
         >
-          <div 
+          <div
             className="relative max-w-4xl max-h-[90vh] bg-[#12121a] rounded-xl overflow-hidden border border-white/10"
             onClick={(e) => e.stopPropagation()}
           >
@@ -215,7 +225,7 @@ const Gallery = ({ images = [], onDelete, onClear }) => {
                   <p className="text-sm text-slate-300 line-clamp-2">
                     {selectedImage.prompt || 'No prompt saved'}
                   </p>
-                  
+
                   {selectedImage.negativePrompt && (
                     <>
                       <div className="flex items-center gap-2 text-xs text-slate-400 mt-3 mb-1">

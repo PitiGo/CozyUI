@@ -1,36 +1,39 @@
 import { useEffect, useState, memo, useCallback, useRef } from 'react';
-import { 
-  HardDrive, 
-  Trash2, 
-  X, 
-  RefreshCw, 
+import {
+  HardDrive,
+  Trash2,
+  X,
+  RefreshCw,
   Database,
   AlertTriangle,
   CheckCircle2,
   Loader2,
   Cpu
 } from 'lucide-react';
-import { useStore, AVAILABLE_MODELS } from '../store/useStore.jsx';
+import { useStore } from '../store/useStore.jsx';
+import { AVAILABLE_MODELS } from '../store/models.js';
 import { opfsService } from '../services/opfsService.js';
 
 const StorageManager = ({ isOpen, onClose }) => {
   const { state, actions } = useStore();
-  const { 
-    cachedModels, 
-    browserCachedModels, 
-    storageUsed, 
-    storageQuota, 
+  const {
+    cachedModels,
+    browserCachedModels,
+    storageUsed,
+    storageQuota,
     browserCacheSize,
-    isLoadingCache 
+    isLoadingCache
   } = state.system;
-  
+
   const [cachedModelsInfo, setCachedModelsInfo] = useState([]);
   const [isDeleting, setIsDeleting] = useState(null);
   const [isClearing, setIsClearing] = useState(false);
-  
+
   // Use ref to avoid stale closure issues and infinite loops
   const actionsRef = useRef(actions);
-  actionsRef.current = actions;
+  useEffect(() => {
+    actionsRef.current = actions;
+  });
 
   // Load detailed info about cached models
   const loadCachedModelsInfo = useCallback(async () => {
@@ -70,7 +73,7 @@ const StorageManager = ({ isOpen, onClose }) => {
 
   const handleClearAll = async () => {
     if (!window.confirm('Are you sure you want to delete all cached models?')) return;
-    
+
     setIsClearing(true);
     try {
       await actions.clearAllCache();
@@ -98,7 +101,7 @@ const StorageManager = ({ isOpen, onClose }) => {
 
   // Calculate usage percentage
   const usagePercent = storageQuota > 0 ? (storageUsed / storageQuota) * 100 : 0;
-  
+
   // Total cached items
   const totalCachedItems = cachedModels.length + browserCachedModels.length;
   const totalCacheSize = browserCacheSize + (cachedModelsInfo.reduce((sum, m) => sum + (m.size || 0), 0));
@@ -119,7 +122,7 @@ const StorageManager = ({ isOpen, onClose }) => {
               <p className="text-xs text-slate-500">Manage cached models</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
@@ -137,15 +140,14 @@ const StorageManager = ({ isOpen, onClose }) => {
             <span>Quota: {formatBytes(storageQuota)}</span>
           </div>
           <div className="h-3 bg-black/50 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-500 ${
-                usagePercent > 80 
-                  ? 'bg-gradient-to-r from-rose-500 to-red-500' 
-                  : usagePercent > 50 
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-                    : 'bg-gradient-to-r from-indigo-500 to-violet-500'
-              }`}
-              style={{ width: `${Math.min(100, usagePercent)}%` }} 
+            <div
+              className={`h-full transition-all duration-500 ${usagePercent > 80
+                ? 'bg-gradient-to-r from-rose-500 to-red-500'
+                : usagePercent > 50
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                  : 'bg-gradient-to-r from-indigo-500 to-violet-500'
+                }`}
+              style={{ width: `${Math.min(100, usagePercent)}%` }}
             />
           </div>
           <div className="flex justify-between mt-1">
@@ -195,10 +197,10 @@ const StorageManager = ({ isOpen, onClose }) => {
                     <Cpu size={12} />
                     <span>Transformers.js (WebGPU)</span>
                   </div>
-                  
+
                   {browserCachedModels.map((model) => (
-                    <div 
-                      key={model.name} 
+                    <div
+                      key={model.name}
                       className="flex items-center justify-between p-3 bg-emerald-500/5 rounded-xl 
                         border border-emerald-500/10 hover:border-emerald-500/20 transition-all group"
                     >
@@ -216,15 +218,14 @@ const StorageManager = ({ isOpen, onClose }) => {
                           </p>
                         </div>
                       </div>
-                      
-                      <button 
+
+                      <button
                         onClick={() => handleDeleteBrowserModel(model.name)}
                         disabled={isDeleting === model.name}
-                        className={`p-2 rounded-lg transition-all ${
-                          isDeleting === model.name
-                            ? 'bg-rose-500/20 text-rose-400'
-                            : 'opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-rose-400'
-                        }`}
+                        className={`p-2 rounded-lg transition-all ${isDeleting === model.name
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : 'opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-rose-400'
+                          }`}
                         title="Delete from cache"
                       >
                         {isDeleting === model.name ? (
@@ -245,14 +246,14 @@ const StorageManager = ({ isOpen, onClose }) => {
                     <HardDrive size={12} />
                     <span>OPFS Storage</span>
                   </div>
-                  
+
                   {cachedModels.map((modelId) => {
                     const model = AVAILABLE_MODELS.find(m => m.id === modelId);
                     const cachedInfo = cachedModelsInfo.find(c => c.name.includes(model?.repo?.split('/')[1] || ''));
-                    
+
                     return (
-                      <div 
-                        key={modelId} 
+                      <div
+                        key={modelId}
                         className="flex items-center justify-between p-3 bg-white/5 rounded-xl 
                           border border-white/5 hover:border-white/10 transition-all group"
                       >
@@ -270,15 +271,14 @@ const StorageManager = ({ isOpen, onClose }) => {
                             </p>
                           </div>
                         </div>
-                        
-                        <button 
+
+                        <button
                           onClick={() => handleDeleteModel(modelId)}
                           disabled={isDeleting === modelId}
-                          className={`p-2 rounded-lg transition-all ${
-                            isDeleting === modelId
-                              ? 'bg-rose-500/20 text-rose-400'
-                              : 'opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-rose-400'
-                          }`}
+                          className={`p-2 rounded-lg transition-all ${isDeleting === modelId
+                            ? 'bg-rose-500/20 text-rose-400'
+                            : 'opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-rose-400'
+                            }`}
                           title="Delete from cache"
                         >
                           {isDeleting === modelId ? (
@@ -302,7 +302,7 @@ const StorageManager = ({ isOpen, onClose }) => {
             <p className="text-xs text-slate-500">
               {totalCachedItems} cached model{totalCachedItems !== 1 ? 's' : ''}
             </p>
-            
+
             {totalCachedItems > 0 && (
               <button
                 onClick={handleClearAll}

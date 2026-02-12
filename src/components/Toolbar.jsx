@@ -1,8 +1,8 @@
 import { memo, useState } from 'react';
-import { 
-  Play, 
-  Square, 
-  RotateCcw, 
+import {
+  Play,
+  Square,
+  RotateCcw,
   Download,
   Upload,
   Settings,
@@ -17,19 +17,18 @@ import { useStore } from '../store/useStore.jsx';
 import { presetWorkflows } from '../hooks/useWorkflow.jsx';
 import StorageManager from './StorageManager.jsx';
 
-const Toolbar = ({ 
-  onRunWorkflow, 
-  onClearCanvas, 
+const Toolbar = ({
+  onRunWorkflow,
+  onClearCanvas,
   onExportWorkflow,
   onImportWorkflow,
   onLoadPreset
 }) => {
   const { state } = useStore();
-  const { model, generation, system } = state;
+  const { generation, system } = state;
   const [showPresets, setShowPresets] = useState(false);
   const [showStorageManager, setShowStorageManager] = useState(false);
-  
-  const isModelLoaded = model.status === 'loaded';
+
   const isGenerating = generation.status === 'generating';
   const hasCachedModels = system.cachedModels.length > 0;
 
@@ -38,7 +37,7 @@ const Toolbar = ({
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
         <div className="flex items-center gap-2 px-4 py-2 bg-[#12121a]/90 backdrop-blur-sm 
           border border-white/10 rounded-full shadow-2xl">
-          
+
           {/* Run Button */}
           <button
             onClick={onRunWorkflow}
@@ -47,7 +46,7 @@ const Toolbar = ({
               flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm
               transition-all duration-200
               ${!isGenerating
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg hover:shadow-emerald-500/30' 
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg hover:shadow-emerald-500/30'
                 : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'}
             `}
           >
@@ -72,8 +71,8 @@ const Toolbar = ({
             disabled={!isGenerating}
             className={`
               p-2 rounded-full transition-colors
-              ${isGenerating 
-                ? 'text-rose-400 hover:bg-rose-500/20' 
+              ${isGenerating
+                ? 'text-rose-400 hover:bg-rose-500/20'
                 : 'text-slate-600 cursor-not-allowed'}
             `}
             title="Stop Generation"
@@ -86,6 +85,7 @@ const Toolbar = ({
             onClick={onClearCanvas}
             className="p-2 rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
             title="Reset Canvas"
+            aria-label="Reset Canvas"
           >
             <RotateCcw size={18} />
           </button>
@@ -98,8 +98,8 @@ const Toolbar = ({
             onClick={() => setShowPresets(!showPresets)}
             className={`
               p-2 rounded-full transition-colors flex items-center gap-1
-              ${showPresets 
-                ? 'bg-indigo-500/20 text-indigo-400' 
+              ${showPresets
+                ? 'bg-indigo-500/20 text-indigo-400'
                 : 'text-slate-400 hover:bg-white/10 hover:text-white'}
             `}
             title="Workflow Presets"
@@ -132,11 +132,10 @@ const Toolbar = ({
           {/* Storage Manager */}
           <button
             onClick={() => setShowStorageManager(true)}
-            className={`p-2 rounded-full transition-colors relative ${
-              hasCachedModels 
-                ? 'text-emerald-400 hover:bg-emerald-500/20' 
-                : 'text-slate-400 hover:bg-white/10 hover:text-white'
-            }`}
+            className={`p-2 rounded-full transition-colors relative ${hasCachedModels
+              ? 'text-emerald-400 hover:bg-emerald-500/20'
+              : 'text-slate-400 hover:bg-white/10 hover:text-white'
+              }`}
             title="Storage Manager"
           >
             <HardDrive size={18} />
@@ -149,6 +148,7 @@ const Toolbar = ({
           <button
             className="p-2 rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
             title="Settings"
+            aria-label="Settings"
           >
             <Settings size={18} />
           </button>
@@ -157,6 +157,7 @@ const Toolbar = ({
           <button
             className="p-2 rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
             title="Help"
+            aria-label="Help"
           >
             <HelpCircle size={18} />
           </button>
@@ -170,14 +171,14 @@ const Toolbar = ({
             shadow-2xl p-4 w-80">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-slate-200">Workflow Presets</h3>
-              <button 
+              <button
                 onClick={() => setShowPresets(false)}
                 className="p-1 hover:bg-white/10 rounded transition-colors"
               >
                 <X size={14} className="text-slate-400" />
               </button>
             </div>
-            
+
             <div className="space-y-2">
               {presetWorkflows.map((preset) => (
                 <button
@@ -207,9 +208,9 @@ const Toolbar = ({
       )}
 
       {/* Storage Manager Modal */}
-      <StorageManager 
-        isOpen={showStorageManager} 
-        onClose={() => setShowStorageManager(false)} 
+      <StorageManager
+        isOpen={showStorageManager}
+        onClose={() => setShowStorageManager(false)}
       />
     </>
   );

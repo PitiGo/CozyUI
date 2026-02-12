@@ -2,7 +2,8 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { Handle, Position, useReactFlow } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { Box, Loader2, AlertCircle, Cpu, CheckCircle2, Lock, RefreshCw, MemoryStick, Download, X, Trash2, HardDrive, CloudDownload, Zap } from 'lucide-react';
-import { useStore, AVAILABLE_MODELS } from '../../store/useStore.jsx';
+import { useStore } from '../../store/useStore.jsx';
+import { AVAILABLE_MODELS } from '../../store/models.js';
 import { getMemoryInfo, formatMemory } from '../../services/memoryGuard.js';
 import { cachedModelsRegistry } from '../../services/downloadPersistence.js';
 
@@ -22,13 +23,13 @@ const ModelLoaderNode = ({ id, data, isConnectable, selected }) => {
 
   const handleModelSelect = useCallback((model) => {
     if (model.disabled) return;
-    
+
     // Clear any interrupted download banner since user is starting a new load
     if (interrupted) {
       actions.dismissInterruptedDownload();
     }
 
-    updateNodeData(id, { 
+    updateNodeData(id, {
       selectedModel: model,
       modelStatus: 'loading',
       error: null,
@@ -40,7 +41,7 @@ const ModelLoaderNode = ({ id, data, isConnectable, selected }) => {
 
   const selectedModel = data.selectedModel || AVAILABLE_MODELS[0];
   const modelStatus = data.modelStatus || 'idle';
-  
+
   // Separate models by status
   const workingModels = AVAILABLE_MODELS.filter(m => m.status === 'working');
   const pendingModels = AVAILABLE_MODELS.filter(m => m.status === 'pending');
@@ -72,18 +73,18 @@ const ModelLoaderNode = ({ id, data, isConnectable, selected }) => {
 
     if (storeModelId === selectedModel.id) {
       if (state.model.status === 'loading') {
-        updateNodeData(id, { 
+        updateNodeData(id, {
           modelStatus: 'loading',
           loadProgress: state.model.progress
         });
       } else if (state.model.status === 'loaded') {
-        updateNodeData(id, { 
+        updateNodeData(id, {
           modelStatus: 'loaded',
           loadProgress: 100,
           error: null,
         });
       } else if (state.model.status === 'error') {
-        updateNodeData(id, { 
+        updateNodeData(id, {
           modelStatus: 'error',
           error: state.model.error
         });
@@ -98,33 +99,33 @@ const ModelLoaderNode = ({ id, data, isConnectable, selected }) => {
   );
 
   const statusConfig = {
-    idle: { 
-      icon: <Cpu size={12} />, 
-      text: 'Select a model', 
-      color: 'text-slate-400' 
+    idle: {
+      icon: <Cpu size={12} />,
+      text: 'Select a model',
+      color: 'text-slate-400'
     },
-    loading: { 
-      icon: <Loader2 className="animate-spin" size={12} />, 
-      text: isCacheLoad ? 'Loading from cache...' : 'Loading...', 
-      color: 'text-amber-400' 
+    loading: {
+      icon: <Loader2 className="animate-spin" size={12} />,
+      text: isCacheLoad ? 'Loading from cache...' : 'Loading...',
+      color: 'text-amber-400'
     },
-    loaded: { 
-      icon: <CheckCircle2 size={12} />, 
-      text: 'Loaded (100% Local)', 
-      color: 'text-emerald-400' 
+    loaded: {
+      icon: <CheckCircle2 size={12} />,
+      text: 'Loaded (100% Local)',
+      color: 'text-emerald-400'
     },
-    error: { 
-      icon: <AlertCircle size={12} />, 
-      text: 'Error', 
-      color: 'text-rose-400' 
+    error: {
+      icon: <AlertCircle size={12} />,
+      text: 'Error',
+      color: 'text-rose-400'
     }
   };
 
   const status = statusConfig[modelStatus];
 
   return (
-    <BaseNode 
-      title="Model" 
+    <BaseNode
+      title="Model"
       icon={<Box size={16} />}
       color="violet"
       status={modelStatus === 'loading' ? 'loading' : 'idle'}
@@ -268,21 +269,19 @@ const ModelLoaderNode = ({ id, data, isConnectable, selected }) => {
                   <MemoryStick size={9} />
                   RAM
                 </span>
-                <span className={`font-mono ${
-                  (memInfo.usedJSHeap / memInfo.heapLimit) > 0.8 ? 'text-rose-400' :
-                  (memInfo.usedJSHeap / memInfo.heapLimit) > 0.6 ? 'text-amber-400' :
-                  'text-slate-400'
-                }`}>
+                <span className={`font-mono ${(memInfo.usedJSHeap / memInfo.heapLimit) > 0.8 ? 'text-rose-400' :
+                    (memInfo.usedJSHeap / memInfo.heapLimit) > 0.6 ? 'text-amber-400' :
+                      'text-slate-400'
+                  }`}>
                   {formatMemory(memInfo.usedJSHeap)} / {formatMemory(memInfo.heapLimit)}
                 </span>
               </div>
               <div className="mt-1 h-1 bg-black/40 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    (memInfo.usedJSHeap / memInfo.heapLimit) > 0.8 ? 'bg-rose-500' :
-                    (memInfo.usedJSHeap / memInfo.heapLimit) > 0.6 ? 'bg-amber-500' :
-                    'bg-indigo-500'
-                  }`}
+                  className={`h-full rounded-full transition-all duration-500 ${(memInfo.usedJSHeap / memInfo.heapLimit) > 0.8 ? 'bg-rose-500' :
+                      (memInfo.usedJSHeap / memInfo.heapLimit) > 0.6 ? 'bg-amber-500' :
+                        'bg-indigo-500'
+                    }`}
                   style={{ width: `${Math.min(100, (memInfo.usedJSHeap / memInfo.heapLimit) * 100)}%` }}
                 />
               </div>

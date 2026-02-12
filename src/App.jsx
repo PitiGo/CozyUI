@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { nodeTypes } from './components/nodes';
+import { nodeTypes } from './components/nodes/nodeTypes.js';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import StatusBar from './components/StatusBar';
@@ -21,7 +21,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { StoreProvider, useStore } from './store/useStore.jsx';
 import { useGallery } from './hooks/useGallery.jsx';
 import { useToast } from './hooks/useToast.jsx';
-import { useWorkflow } from './hooks/useWorkflow.jsx';
+import { useWorkflow, getEdgeColor } from './hooks/useWorkflow.jsx';
 import { globalToast } from './utils/globalToast';
 
 // Initial nodes for demo
@@ -108,20 +108,10 @@ const initialEdges = [
   },
 ];
 
-let id = 0;
+let id = Date.now();
 const getId = () => `node_${id++}`;
 
-// Get edge color based on source handle
-function getEdgeColor(sourceHandle) {
-  const colors = {
-    'prompt-out': '#6366f1',
-    'model-out': '#8b5cf6',
-    'image-out': '#10b981',
-    'seed-out': '#06b6d4',
-    'size-out': '#0ea5e9'
-  };
-  return colors[sourceHandle] || '#6366f1';
-}
+
 
 function Flow() {
   const reactFlowWrapper = useRef(null);
@@ -233,7 +223,7 @@ function Flow() {
     });
 
     toast.success('Image generated! ✨');
-  }, [state.generation.imageUrl, state.generation.status, setNodes, addImage, toast]);
+  }, [state.generation.imageUrl, state.generation.status, state.model.id, setNodes, addImage, toast]);
 
   // Handle generation errors
   useEffect(() => {
@@ -282,7 +272,6 @@ function Flow() {
         currentOutputs[node.id] = { type: 'img', value: node.data.imageUrl };
       } else if (node.type === 'inferenceNode' && node.data?.generatedImageUrl) {
         currentOutputs[node.id] = { type: 'img', value: node.data.generatedImageUrl };
-        console.log('📤 InferenceNode output detected:', node.data.generatedImageUrl.substring(0, 50));
       }
     });
 
@@ -332,7 +321,6 @@ function Flow() {
             };
           }
           if (node.type === 'backgroundRemovalNode' && updates.imageUrl) {
-            console.log('📥 BackgroundRemovalNode receiving image from connection');
             return {
               ...node,
               data: {
@@ -348,25 +336,7 @@ function Flow() {
     }
   }, [outputsKey, edges, setNodes, nodes]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Ctrl/Cmd + Enter = Generate
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        handleRunWorkflow();
-      }
-      // Ctrl/Cmd + R = Reset (prevent browser refresh)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
-        e.preventDefault();
-        handleClearCanvas();
-        toast.info('Canvas reset');
-      }
-    };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, state.model.status]);
 
   const onConnect = useCallback(
     (params) => {
@@ -443,6 +413,45 @@ function Flow() {
     [nodes, setEdges, setNodes]
   );
 
+  const getDefaultNodeData = useCallback((type) => {
+    switch (type) {
+      case 'promptNode':
+        return { prompt: '', negativePrompt: '' };
+      case 'modelLoaderNode':
+        return {
+          selectedModel: {
+            id: 'sd-turbo',
+            name: 'SD-Turbo',
+            repo: 'sd-turbo',
+            engine: 'local-txt2img',
+            description: '🖥️ 100% Local · 1-step · Fast'
+          },
+          modelStatus: 'idle',
+          loadProgress: 0
+        };
+      case 'inferenceNode':
+        return {
+          steps: 20,
+          guidanceScale: 7.5,
+          seed: -1,
+          width: 512,
+          height: 512,
+          isGenerating: false,
+          progress: 0
+        };
+      case 'imageDisplayNode':
+        return { imageUrl: null, isLoading: false };
+      case 'backgroundRemovalNode':
+        return { inputImage: null, outputImage: null, imageName: null };
+      case 'img2imgNode':
+        return { imageUrl: null, strength: 0.75 };
+      case 'inpaintingNode':
+        return { imageUrl: null, maskUrl: null, imageName: null };
+      default:
+        return {};
+    }
+  }, []);
+
   const onDragOver = useCallback((event) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
@@ -469,45 +478,8 @@ function Flow() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [screenToFlowPosition, setNodes]
+    [screenToFlowPosition, setNodes, getDefaultNodeData]
   );
-
-  const getDefaultNodeData = (type) => {
-    switch (type) {
-      case 'promptNode':
-        return { prompt: '', negativePrompt: '' };
-      case 'modelLoaderNode':
-        return {
-          selectedModel: {
-            id: 'flux',
-            name: 'Flux (Cloud)',
-            repo: 'flux',
-            engine: 'api',
-            description: '☁️ Best quality'
-          },
-          modelStatus: 'idle',
-          loadProgress: 0
-        };
-      case 'inferenceNode':
-        return {
-          steps: 20,
-          guidanceScale: 7.5,
-          seed: -1,
-          width: 512,
-          height: 512,
-          isGenerating: false,
-          progress: 0
-        };
-      case 'imageDisplayNode':
-        return { imageUrl: null, isLoading: false };
-      case 'backgroundRemovalNode':
-        return { inputImage: null, outputImage: null, imageName: null };
-      case 'inpaintingNode':
-        return { imageUrl: null, maskUrl: null, imageName: null };
-      default:
-        return {};
-    }
-  };
 
   const handleRunWorkflow = useCallback(() => {
     const promptNode = nodes.find(n => n.type === 'promptNode');
@@ -544,13 +516,33 @@ function Flow() {
       height: inferenceNode.data.height,
       seed: inferenceNode.data.seed,
     });
-  }, [nodes, state.model.status, actions, toast]);
+  }, [nodes, state.model.status, state.model.id, actions, toast]);
 
   const handleClearCanvas = useCallback(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
     actions.resetGeneration();
   }, [setNodes, setEdges, actions]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl/Cmd + Enter = Generate
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleRunWorkflow();
+      }
+      // Ctrl/Cmd + Shift + R = Reset Canvas (does not override browser refresh)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'r') {
+        e.preventDefault();
+        handleClearCanvas();
+        toast.info('Canvas reset');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleRunWorkflow, handleClearCanvas, toast]);
 
   // Workflow handlers
   const handleExportWorkflow = useCallback(() => {
@@ -635,6 +627,9 @@ function Flow() {
                 case 'imageDisplayNode': return '#10b981';
                 case 'inpaintingNode': return '#8b5cf6';
                 case 'img2imgNode': return '#f43f5e';
+                case 'backgroundRemovalNode': return '#f43f5e';
+                case 'seedNode': return '#06b6d4';
+                case 'imageResizeNode': return '#0ea5e9';
                 default: return '#64748b';
               }
             }}

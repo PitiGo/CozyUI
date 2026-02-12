@@ -11,7 +11,7 @@ class OPFSService {
 
   async init() {
     if (this.initialized) return;
-    
+
     try {
       // Request access to OPFS
       this.root = await navigator.storage.getDirectory();
@@ -29,14 +29,14 @@ class OPFSService {
    */
   async getDirectory(path) {
     if (!this.initialized) await this.init();
-    
+
     const parts = path.split('/').filter(p => p);
     let current = this.root;
-    
+
     for (const part of parts) {
       current = await current.getDirectoryHandle(part, { create: true });
     }
-    
+
     return current;
   }
 
@@ -45,7 +45,7 @@ class OPFSService {
    */
   async fileExists(path) {
     if (!this.initialized) await this.init();
-    
+
     try {
       const parts = path.split('/').filter(p => p);
       const filename = parts.pop();
@@ -62,11 +62,11 @@ class OPFSService {
    */
   async directoryExists(path) {
     if (!this.initialized) await this.init();
-    
+
     try {
       const parts = path.split('/').filter(p => p);
       let current = this.root;
-      
+
       for (const part of parts) {
         current = await current.getDirectoryHandle(part, { create: false });
       }
@@ -81,7 +81,7 @@ class OPFSService {
    */
   async getFile(path) {
     if (!this.initialized) await this.init();
-    
+
     const parts = path.split('/').filter(p => p);
     const filename = parts.pop();
     const dir = await this.getDirectory(parts.join('/'));
@@ -93,10 +93,10 @@ class OPFSService {
    */
   async writeFile(path, data) {
     if (!this.initialized) await this.init();
-    
+
     const fileHandle = await this.getFile(path);
     const writable = await fileHandle.createWritable();
-    
+
     if (data instanceof Blob) {
       await writable.write(data);
     } else if (data instanceof ArrayBuffer) {
@@ -106,7 +106,7 @@ class OPFSService {
     } else {
       await writable.write(JSON.stringify(data));
     }
-    
+
     await writable.close();
   }
 
@@ -115,7 +115,7 @@ class OPFSService {
    */
   async readFile(path) {
     if (!this.initialized) await this.init();
-    
+
     const fileHandle = await this.getFile(path);
     const file = await fileHandle.getFile();
     return await file.arrayBuffer();
@@ -126,7 +126,7 @@ class OPFSService {
    */
   async readFileAsBlob(path) {
     if (!this.initialized) await this.init();
-    
+
     const fileHandle = await this.getFile(path);
     return await fileHandle.getFile();
   }
@@ -136,7 +136,7 @@ class OPFSService {
    */
   async deleteFile(path) {
     if (!this.initialized) await this.init();
-    
+
     try {
       const parts = path.split('/').filter(p => p);
       const filename = parts.pop();
@@ -154,16 +154,16 @@ class OPFSService {
    */
   async deleteDirectory(path) {
     if (!this.initialized) await this.init();
-    
+
     try {
       const parts = path.split('/').filter(p => p);
       const dirName = parts.pop();
-      
+
       let parentDir = this.root;
       for (const part of parts) {
         parentDir = await parentDir.getDirectoryHandle(part, { create: false });
       }
-      
+
       await parentDir.removeEntry(dirName, { recursive: true });
       console.log(`✅ Deleted directory: ${path}`);
       return true;
@@ -178,10 +178,10 @@ class OPFSService {
    */
   async listFiles(path = '') {
     if (!this.initialized) await this.init();
-    
+
     const dir = await this.getDirectory(path);
     const files = [];
-    
+
     for await (const [name, handle] of dir.entries()) {
       if (handle.kind === 'file') {
         const file = await handle.getFile();
@@ -192,7 +192,7 @@ class OPFSService {
         });
       }
     }
-    
+
     return files;
   }
 
@@ -201,11 +201,11 @@ class OPFSService {
    */
   async listDirectories(path = '') {
     if (!this.initialized) await this.init();
-    
+
     try {
       const dir = path ? await this.getDirectory(path) : this.root;
       const directories = [];
-      
+
       for await (const [name, handle] of dir.entries()) {
         if (handle.kind === 'directory') {
           // Calculate directory size
@@ -217,7 +217,7 @@ class OPFSService {
           });
         }
       }
-      
+
       return directories;
     } catch (error) {
       console.error('Error listing directories:', error);
@@ -230,7 +230,7 @@ class OPFSService {
    */
   async _getDirectorySize(dirHandle) {
     let totalSize = 0;
-    
+
     try {
       for await (const [, handle] of dirHandle.entries()) {
         if (handle.kind === 'file') {
@@ -243,7 +243,7 @@ class OPFSService {
     } catch (error) {
       console.error('Error calculating directory size:', error);
     }
-    
+
     return totalSize;
   }
 
@@ -252,21 +252,21 @@ class OPFSService {
    */
   async listCachedModels() {
     if (!this.initialized) await this.init();
-    
+
     try {
       const modelsDir = await this.root.getDirectoryHandle('models', { create: false });
       const models = [];
-      
+
       for await (const [name, handle] of modelsDir.entries()) {
         if (handle.kind === 'directory') {
           const size = await this._getDirectorySize(handle);
-          
+
           // Count files in the model directory
           let fileCount = 0;
           for await (const [, fileHandle] of handle.entries()) {
             if (fileHandle.kind === 'file') fileCount++;
           }
-          
+
           models.push({
             name,
             size,
@@ -275,9 +275,9 @@ class OPFSService {
           });
         }
       }
-      
+
       return models;
-    } catch (error) {
+    } catch {
       // Models directory doesn't exist yet
       return [];
     }
@@ -288,7 +288,7 @@ class OPFSService {
    */
   async getStorageUsage() {
     if (!this.initialized) await this.init();
-    
+
     try {
       const estimate = await navigator.storage.estimate();
       return {
@@ -307,7 +307,7 @@ class OPFSService {
    */
   async clearAll() {
     if (!this.initialized) await this.init();
-    
+
     try {
       const modelsDir = await this.root.getDirectoryHandle('models', { create: false });
       for await (const [name] of modelsDir.entries()) {
@@ -342,32 +342,32 @@ class BrowserCacheService {
    */
   async listCachedModels() {
     const models = new Map(); // Use map to group by model
-    
+
     try {
       const cacheNames = await caches.keys();
-      
+
       for (const cacheName of cacheNames) {
         // Check all caches that might contain model data
         const cache = await caches.open(cacheName);
         const requests = await cache.keys();
-        
+
         for (const request of requests) {
           const url = request.url;
-          
+
           // Filter for Hugging Face model files
           if (url.includes('huggingface.co') || url.includes('hf.co')) {
             // Extract model name from URL
             // URLs look like: https://huggingface.co/Xenova/swin2SR-classical-sr-x2-64/resolve/main/model.onnx
-            const match = url.match(/huggingface\.co\/([^\/]+\/[^\/]+)/);
+            const match = url.match(/huggingface\.co\/([^/]+\/[^/]+)/);
             const modelName = match ? match[1] : 'Unknown';
-            
+
             // Get response to calculate size
             const response = await cache.match(request);
             const size = response ? parseInt(response.headers.get('content-length') || '0', 10) : 0;
-            
+
             // Get filename from URL
             const filename = url.split('/').pop()?.split('?')[0] || 'unknown';
-            
+
             if (!models.has(modelName)) {
               models.set(modelName, {
                 name: modelName,
@@ -376,14 +376,14 @@ class BrowserCacheService {
                 cacheName
               });
             }
-            
+
             const model = models.get(modelName);
             model.files.push({ filename, url, size });
             model.totalSize += size;
           }
         }
       }
-      
+
       return Array.from(models.values());
     } catch (error) {
       console.error('Error listing browser cache:', error);
@@ -406,20 +406,20 @@ class BrowserCacheService {
     try {
       const cacheNames = await caches.keys();
       let deleted = false;
-      
+
       for (const cacheName of cacheNames) {
         const cache = await caches.open(cacheName);
         const requests = await cache.keys();
-        
+
         for (const request of requests) {
-          if (request.url.includes(modelName.replace('/', '%2F')) || 
-              request.url.includes(modelName)) {
+          if (request.url.includes(modelName.replace('/', '%2F')) ||
+            request.url.includes(modelName)) {
             await cache.delete(request);
             deleted = true;
           }
         }
       }
-      
+
       console.log(`✅ Deleted model from cache: ${modelName}`);
       return deleted;
     } catch (error) {
@@ -435,11 +435,11 @@ class BrowserCacheService {
     try {
       const cacheNames = await caches.keys();
       let clearedCount = 0;
-      
+
       for (const cacheName of cacheNames) {
         const cache = await caches.open(cacheName);
         const requests = await cache.keys();
-        
+
         for (const request of requests) {
           if (request.url.includes('huggingface.co') || request.url.includes('hf.co')) {
             await cache.delete(request);
@@ -447,7 +447,7 @@ class BrowserCacheService {
           }
         }
       }
-      
+
       console.log(`✅ Cleared ${clearedCount} cached model files`);
       return true;
     } catch (error) {

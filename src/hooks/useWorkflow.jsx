@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 export function useWorkflow() {
-  
+
   const exportWorkflow = useCallback((nodes, edges) => {
     const workflow = {
       version: '1.0.0',
@@ -25,49 +25,49 @@ export function useWorkflow() {
     const json = JSON.stringify(workflow, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = `${workflow.name}.json`;
     link.click();
-    
+
     URL.revokeObjectURL(url);
-    
+
     return workflow;
   }, []);
 
   const importWorkflow = useCallback((file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
+
       reader.onload = (e) => {
         try {
           const workflow = JSON.parse(e.target.result);
-          
+
           // Validate workflow structure
           if (!workflow.nodes || !workflow.edges) {
             throw new Error('Invalid workflow file: missing nodes or edges');
           }
-          
+
           // Reconstruct nodes with proper styling
           const nodes = workflow.nodes.map(node => ({
             ...node,
             data: node.data || {}
           }));
-          
+
           // Reconstruct edges with styling
           const edges = workflow.edges.map(edge => ({
             ...edge,
             animated: true,
             style: { stroke: getEdgeColor(edge.sourceHandle), strokeWidth: 2 }
           }));
-          
+
           resolve({ nodes, edges, metadata: { name: workflow.name, createdAt: workflow.createdAt } });
         } catch (error) {
           reject(new Error('Failed to parse workflow file: ' + error.message));
         }
       };
-      
+
       reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsText(file);
     });
@@ -78,7 +78,7 @@ export function useWorkflow() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.json';
-      
+
       input.onchange = async (e) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -90,7 +90,7 @@ export function useWorkflow() {
           }
         }
       };
-      
+
       input.click();
     });
   }, [importWorkflow]);
@@ -105,23 +105,25 @@ export function useWorkflow() {
 // Helper to remove non-serializable data
 function sanitizeNodeData(data) {
   const sanitized = { ...data };
-  
+
   // Remove blob URLs (they won't work after reload)
   if (sanitized.imageUrl && sanitized.imageUrl.startsWith('blob:')) {
     delete sanitized.imageUrl;
   }
-  
+
   return sanitized;
 }
 
 // Get edge color based on source handle
-function getEdgeColor(sourceHandle) {
+export function getEdgeColor(sourceHandle) {
   const colors = {
     'prompt-out': '#6366f1',
     'model-out': '#8b5cf6',
     'image-out': '#10b981',
     'seed-out': '#06b6d4',
-    'size-out': '#0ea5e9'
+    'size-out': '#0ea5e9',
+    'inpaint-out': '#8b5cf6',
+    'bg-removed-out': '#f43f5e',
   };
   return colors[sourceHandle] || '#6366f1';
 }
@@ -143,7 +145,7 @@ export const presetWorkflows = [
         id: 'model-1',
         type: 'modelLoaderNode',
         position: { x: 100, y: 450 },
-        data: { 
+        data: {
           selectedModel: { id: 'sd-turbo', name: 'SD Turbo', repo: 'Xenova/sd-turbo' },
           modelStatus: 'idle'
         }
@@ -188,7 +190,7 @@ export const presetWorkflows = [
         id: 'model-1',
         type: 'modelLoaderNode',
         position: { x: 100, y: 600 },
-        data: { 
+        data: {
           selectedModel: { id: 'sd-turbo', name: 'SD Turbo', repo: 'Xenova/sd-turbo' },
           modelStatus: 'idle'
         }
@@ -233,7 +235,7 @@ export const presetWorkflows = [
         id: 'model-1',
         type: 'modelLoaderNode',
         position: { x: 450, y: 500 },
-        data: { 
+        data: {
           selectedModel: { id: 'sd-turbo', name: 'SD Turbo', repo: 'Xenova/sd-turbo' },
           modelStatus: 'idle'
         }

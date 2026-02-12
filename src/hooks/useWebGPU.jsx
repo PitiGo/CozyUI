@@ -36,10 +36,7 @@ export function useWebGPU() {
 
         // Get adapter info
         const adapterInfo = await adapter.requestAdapterInfo?.() || {};
-        
-        // Request device to confirm full support
-        const device = await adapter.requestDevice();
-        
+
         setStatus({
           supported: true,
           checking: false,

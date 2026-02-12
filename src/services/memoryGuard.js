@@ -27,8 +27,8 @@
 // Approximate *JS heap* overhead per model during loading (bytes)
 // These are much smaller than the full model because weights go to GPU VRAM.
 const MODEL_HEAP_OVERHEAD = {
-  'sd-turbo':             800 * 1024 ** 2,   // ~800 MB heap overhead
-  'janus-pro-1b':         600 * 1024 ** 2,   // ~600 MB heap overhead
+  'sd-turbo': 800 * 1024 ** 2,   // ~800 MB heap overhead
+  'janus-pro-1b': 600 * 1024 ** 2,   // ~600 MB heap overhead
   'local-super-resolution': 150 * 1024 ** 2, // ~150 MB heap overhead
 };
 
@@ -132,7 +132,7 @@ export function formatMemory(bytes) {
 export async function releaseMemory() {
   // Hint GC in Chrome (only in some contexts)
   if (globalThis.gc) {
-    try { globalThis.gc(); } catch (_) { /* ignore */ }
+    try { globalThis.gc(); } catch { /* ignore */ }
   }
   // Yield to allow deferred cleanup
   await new Promise(r => setTimeout(r, 100));

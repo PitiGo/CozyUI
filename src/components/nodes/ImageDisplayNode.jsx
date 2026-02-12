@@ -1,24 +1,17 @@
-import { memo, useState, useEffect, useRef } from 'react';
+import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import BaseNode from './BaseNode';
 import { Image, Download, Maximize2 } from 'lucide-react';
 
-const ImageDisplayNode = ({ id, data, isConnectable, selected }) => {
+const ImageDisplayNode = ({ data, isConnectable, selected }) => {
   const imageUrl = data.imageUrl;
   const isLoading = data.isLoading || false;
   const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
-  const imgRef = useRef(null);
 
-  // Track real image dimensions
-  useEffect(() => {
-    if (!imageUrl) {
-      setDimensions({ w: 0, h: 0 });
-      return;
-    }
-    const img = new window.Image();
-    img.onload = () => setDimensions({ w: img.naturalWidth, h: img.naturalHeight });
-    img.src = imageUrl;
-  }, [imageUrl]);
+  // Track real image dimensions via img element's onLoad handler
+  const handleImageLoad = (e) => {
+    setDimensions({ w: e.target.naturalWidth, h: e.target.naturalHeight });
+  };
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -34,8 +27,8 @@ const ImageDisplayNode = ({ id, data, isConnectable, selected }) => {
   };
 
   return (
-    <BaseNode 
-      title="Output" 
+    <BaseNode
+      title="Output"
       icon={<Image size={16} />}
       color="emerald"
       selected={selected}
@@ -52,7 +45,7 @@ const ImageDisplayNode = ({ id, data, isConnectable, selected }) => {
 
       <div className="space-y-3">
         {/* Image Preview */}
-        <div 
+        <div
           className={`
             relative aspect-square w-full rounded-lg overflow-hidden
             border border-white/10 bg-black/30
@@ -61,13 +54,14 @@ const ImageDisplayNode = ({ id, data, isConnectable, selected }) => {
         >
           {imageUrl ? (
             <>
-              <img 
-                src={imageUrl} 
-                alt="Generated" 
+              <img
+                src={imageUrl}
+                alt="Generated"
                 className="w-full h-full object-cover"
+                onLoad={handleImageLoad}
               />
               {/* Overlay buttons */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 
+              <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100
                 transition-opacity flex items-center justify-center gap-2">
                 <button
                   onClick={handleFullscreen}

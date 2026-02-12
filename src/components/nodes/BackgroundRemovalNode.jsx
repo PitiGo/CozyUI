@@ -40,9 +40,9 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     isManualUploadRef.current = true;
-    
+
     // Check if it's from the gallery
     const galleryData = e.dataTransfer.getData('application/gallery-image');
     if (galleryData) {
@@ -60,7 +60,7 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
         console.error('Failed to parse gallery image data:', err);
       }
     }
-    
+
     // Otherwise handle as file drop
     const file = e.dataTransfer.files?.[0];
     if (file) handleImageUpload(file);
@@ -69,8 +69,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
   const handleDragEnter = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.dataTransfer.types.includes('application/gallery-image') || 
-        e.dataTransfer.types.includes('Files')) {
+    if (e.dataTransfer.types.includes('application/gallery-image') ||
+      e.dataTransfer.types.includes('Files')) {
       setIsDragging(true);
     }
   }, []);
@@ -79,8 +79,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
     e.preventDefault();
     e.stopPropagation();
     // Check if it's a gallery image or file
-    if (e.dataTransfer.types.includes('application/gallery-image') || 
-        e.dataTransfer.types.includes('Files')) {
+    if (e.dataTransfer.types.includes('application/gallery-image') ||
+      e.dataTransfer.types.includes('Files')) {
       e.dataTransfer.dropEffect = 'copy';
       setIsDragging(true);
     }
@@ -97,9 +97,9 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
 
   const handleRemoveBackground = useCallback(async (autoProcess = false) => {
     if (!data.inputImage || isProcessing) return;
-    
+
     setIsProcessing(true);
-    
+
     try {
       // Call the worker to remove background
       actions.removeBackground(data.inputImage, (result) => {
@@ -125,43 +125,42 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
   useEffect(() => {
     // Check if there's an incoming connection
     const hasIncomingConnection = edges.some(e => e.target === id && e.targetHandle === 'image-in');
-    
+
     // If there's a connection and inputImage changed, it's from a connection (not manual)
     if (hasIncomingConnection && data.inputImage && data.inputImage !== lastProcessedInputRef.current) {
       // Reset manual flag since this is from a connection
       isManualUploadRef.current = false;
     }
-    
+
     // Only auto-process if:
     // 1. There's an incoming connection
     // 2. inputImage exists and changed
     // 3. Not already processing
-    if (hasIncomingConnection && 
-        data.inputImage && 
-        data.inputImage !== lastProcessedInputRef.current &&
-        !isProcessing) {
-      
+    if (hasIncomingConnection &&
+      data.inputImage &&
+      data.inputImage !== lastProcessedInputRef.current &&
+      !isProcessing) {
+
       const currentInputImage = data.inputImage; // Capture current value
-      
+
       // Use a small delay to ensure state is stable
       const timeoutId = setTimeout(() => {
         // Double-check manual flag (should be false for connections)
         if (isManualUploadRef.current) {
-          console.log('⏭️ Skipping auto-process (manual upload detected)');
           return;
         }
-        
+
         // Verify inputImage still exists and matches what we captured
         if (!data.inputImage || data.inputImage !== currentInputImage) {
           // Input changed during delay, skip
           return;
         }
-        
-        console.log('🔄 Auto-processing background removal from connected node');
+
+
         lastProcessedInputRef.current = currentInputImage;
         handleRemoveBackground(true);
       }, 100);
-      
+
       return () => clearTimeout(timeoutId);
     }
   }, [data.inputImage, edges, id, isProcessing, handleRemoveBackground]);
@@ -184,8 +183,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
   }, [data.outputImage]);
 
   return (
-    <BaseNode 
-      title="Remove BG" 
+    <BaseNode
+      title="Remove BG"
       icon={<Scissors size={16} />}
       color="rose"
       selected={selected}
@@ -214,8 +213,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
               aspect-video w-full rounded-lg border-2 border-dashed
               flex flex-col items-center justify-center cursor-pointer
               transition-all
-              ${isDragging 
-                ? 'border-rose-500 bg-rose-500/10 scale-[1.02]' 
+              ${isDragging
+                ? 'border-rose-500 bg-rose-500/10 scale-[1.02]'
                 : 'border-white/10 hover:border-rose-500/50 hover:bg-rose-500/5'}
             `}
           >
@@ -229,7 +228,7 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
             {/* Before/After Preview */}
             <div className="grid grid-cols-2 gap-1">
               {/* Input */}
-              <div 
+              <div
                 className="relative"
                 onDrop={handleDrop}
                 onDragEnter={handleDragEnter}
@@ -242,9 +241,9 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
                   relative group
                   ${isDragging ? 'border-rose-500 ring-2 ring-rose-500/50' : 'border-white/10'}
                 `}>
-                  <img 
-                    src={data.inputImage} 
-                    alt="Input" 
+                  <img
+                    src={data.inputImage}
+                    alt="Input"
                     className="w-full h-full object-cover"
                   />
                   {isDragging && (
@@ -254,11 +253,11 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
                   )}
                 </div>
               </div>
-              
+
               {/* Output */}
               <div className="relative">
                 <div className="text-[9px] text-slate-500 mb-0.5">Output</div>
-                <div 
+                <div
                   className="aspect-square rounded overflow-hidden border border-white/10"
                   style={{
                     backgroundImage: 'linear-gradient(45deg, #1a1a2e 25%, transparent 25%), linear-gradient(-45deg, #1a1a2e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a1a2e 75%), linear-gradient(-45deg, transparent 75%, #1a1a2e 75%)',
@@ -267,9 +266,9 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
                   }}
                 >
                   {data.outputImage ? (
-                    <img 
-                      src={data.outputImage} 
-                      alt="Output" 
+                    <img
+                      src={data.outputImage}
+                      alt="Output"
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -290,8 +289,8 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
                   flex-1 py-1.5 rounded text-xs font-medium
                   flex items-center justify-center gap-1
                   transition-all
-                  ${isProcessing 
-                    ? 'bg-rose-500/20 text-rose-300 cursor-wait' 
+                  ${isProcessing
+                    ? 'bg-rose-500/20 text-rose-300 cursor-wait'
                     : 'bg-rose-500/30 border border-rose-500/50 text-rose-300 hover:bg-rose-500/40'}
                 `}
               >
@@ -307,7 +306,7 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
                   </>
                 )}
               </button>
-              
+
               {data.outputImage && (
                 <button
                   onClick={handleDownload}
@@ -317,7 +316,7 @@ const BackgroundRemovalNode = ({ id, data, isConnectable, selected }) => {
                   <Download size={12} />
                 </button>
               )}
-              
+
               <button
                 onClick={handleClear}
                 className="p-1.5 rounded bg-black/20 border border-white/10 text-slate-400 hover:bg-white/10"

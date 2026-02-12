@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef, useMemo } from 'react';
+/* eslint-disable react-refresh/only-export-components */
 import { modelDownloader } from '../services/modelDownloader.js';
 import { opfsService, browserCacheService } from '../services/opfsService.js';
 import { txt2imgService } from '../services/txt2imgService.js';
@@ -8,76 +9,9 @@ import { releaseMemory } from '../services/memoryGuard.js';
 
 const StoreContext = createContext(null);
 
-// Available models list (exported for use in components)
-// 100% Local – NO APIs – Uses web-txt2img + WebGPU
-export const AVAILABLE_MODELS = [
-  // ═══════════════════════════════════════════════════════════════════
-  // FUNCIONALES – 100% Local via web-txt2img + WebGPU
-  // ═══════════════════════════════════════════════════════════════════
-  {
-    id: 'sd-turbo',
-    name: 'SD-Turbo',
-    repo: 'sd-turbo',                  // web-txt2img model ID
-    engine: 'local-txt2img',           // uses txt2imgService
-    description: '🖥️ 100% Local · 1-step · Fast',
-    size: '~1.7GB',
-    local: true,
-    status: 'working',                 // ✅ Confirmed working
-    note: 'Single-step Stable Diffusion via ONNX Runtime Web + WebGPU'
-  },
-  {
-    id: 'janus-pro-1b',
-    name: 'Janus-Pro 1B',
-    repo: 'janus-pro-1b',             // web-txt2img model ID
-    engine: 'local-txt2img',
-    description: '🖥️ 100% Local · Multimodal · 1B',
-    size: '~1.5GB',
-    local: true,
-    status: 'working',                 // ✅ Confirmed working
-    note: 'DeepSeek Janus-Pro via Transformers.js + WebGPU'
-  },
-  // ═══════════════════════════════════════════════════════════════════
-  // FUNCIONAL – Super-Resolution local (Transformers.js worker)
-  // ═══════════════════════════════════════════════════════════════════
-  {
-    id: 'local-super-resolution',
-    name: 'Image Enhancer (2x)',
-    repo: 'Xenova/swin2SR-classical-sr-x2-64',
-    engine: 'local-enhance',           // uses existing worker
-    description: '🖥️ 100% Local · Super-Resolution',
-    size: '~50MB',
-    local: true,
-    status: 'working',
-    note: 'Image enhancement only – not text-to-image'
-  },
-  // ═══════════════════════════════════════════════════════════════════
-  // PENDING – Not yet available in compatible format
-  // ═══════════════════════════════════════════════════════════════════
-  {
-    id: 'sdxl-turbo-pending',
-    name: 'SDXL-Turbo (Pending)',
-    repo: '',
-    engine: 'pending',
-    description: 'Pending – ONNX not available',
-    size: '~3GB',
-    local: true,
-    status: 'pending',
-    disabled: true,
-    note: 'Awaiting browser-compatible ONNX conversion'
-  },
-  {
-    id: 'sd-1.5-pending',
-    name: 'SD 1.5 Local (Pending)',
-    repo: '',
-    engine: 'pending',
-    description: 'Pending – ONNX not available',
-    size: '~2GB',
-    local: true,
-    status: 'pending',
-    disabled: true,
-    note: 'Awaiting Transformers.js-compatible ONNX models'
-  }
-];
+import { AVAILABLE_MODELS } from './models.js';
+
+
 
 const initialState = {
   // WebGPU status
@@ -130,7 +64,7 @@ function reducer(state, action) {
           info: action.payload.info || action.payload.reason
         }
       };
-    
+
     case 'MODEL_LOADING':
       return {
         ...state,
@@ -144,7 +78,7 @@ function reducer(state, action) {
           totalBytesExpected: action.payload.totalBytesExpected ?? state.model.totalBytesExpected ?? 0,
         }
       };
-    
+
     case 'MODEL_LOADED':
       return {
         ...state,
@@ -156,7 +90,7 @@ function reducer(state, action) {
           error: null
         }
       };
-    
+
     case 'MODEL_ERROR':
       return {
         ...state,
@@ -166,11 +100,11 @@ function reducer(state, action) {
           error: action.payload.error
         }
       };
-    
+
     case 'GENERATION_STARTED':
       // Revoke previous blob URL to free memory before new generation
       if (state.generation.imageUrl && state.generation.imageUrl.startsWith('blob:')) {
-        try { URL.revokeObjectURL(state.generation.imageUrl); } catch (_) { /* ignore */ }
+        try { URL.revokeObjectURL(state.generation.imageUrl); } catch { /* ignore */ }
       }
       return {
         ...state,
@@ -181,7 +115,7 @@ function reducer(state, action) {
           error: null
         }
       };
-    
+
     case 'GENERATION_PROGRESS':
       return {
         ...state,
@@ -190,11 +124,11 @@ function reducer(state, action) {
           progress: action.payload.progress
         }
       };
-    
+
     case 'GENERATION_COMPLETE':
       // Revoke previous blob URL to prevent memory leak
       if (state.generation.imageUrl && state.generation.imageUrl.startsWith('blob:')) {
-        try { URL.revokeObjectURL(state.generation.imageUrl); } catch (_) { /* ignore */ }
+        try { URL.revokeObjectURL(state.generation.imageUrl); } catch { /* ignore */ }
       }
       return {
         ...state,
@@ -205,7 +139,7 @@ function reducer(state, action) {
           error: null
         }
       };
-    
+
     case 'GENERATION_ERROR':
       return {
         ...state,
@@ -215,11 +149,11 @@ function reducer(state, action) {
           error: action.payload.error
         }
       };
-    
+
     case 'RESET_GENERATION':
       // Revoke previous blob URL to free memory
       if (state.generation.imageUrl && state.generation.imageUrl.startsWith('blob:')) {
-        try { URL.revokeObjectURL(state.generation.imageUrl); } catch (_) { /* ignore */ }
+        try { URL.revokeObjectURL(state.generation.imageUrl); } catch { /* ignore */ }
       }
       return {
         ...state,
@@ -230,13 +164,13 @@ function reducer(state, action) {
           error: null
         }
       };
-    
+
     case 'SET_WORKER':
       return {
         ...state,
         worker: action.payload
       };
-    
+
     case 'UPDATE_CACHE_STATUS':
       return {
         ...state,
@@ -250,7 +184,7 @@ function reducer(state, action) {
           isLoadingCache: false
         }
       };
-    
+
     case 'SET_CACHE_LOADING':
       return {
         ...state,
@@ -277,7 +211,7 @@ function reducer(state, action) {
         ...state,
         model: { ...initialState.model },
       };
-    
+
     default:
       return state;
   }
@@ -287,7 +221,11 @@ export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const workerRef = useRef(null);
   const stateRef = useRef(state);
-  stateRef.current = state; // always points to latest state
+
+  // Keep state ref updated (React 19 compliant)
+  useEffect(() => {
+    stateRef.current = state;
+  });
   const bgRemovalCallbacksRef = useRef({});
   const bgRemovalIdRef = useRef(0);
 
@@ -363,11 +301,11 @@ export function StoreProvider({ children }) {
         // Check OPFS cache
         const cachedIds = await modelDownloader.checkCachedModels(AVAILABLE_MODELS);
         const storageInfo = await opfsService.getStorageUsage();
-        
+
         // Check Browser Cache (Transformers.js)
         const browserCachedModels = await browserCacheService.listCachedModels();
         const browserCacheSize = await browserCacheService.getTotalCacheSize();
-        
+
         dispatch({
           type: 'UPDATE_CACHE_STATUS',
           payload: {
@@ -383,7 +321,7 @@ export function StoreProvider({ children }) {
         dispatch({ type: 'SET_CACHE_LOADING', payload: false });
       }
     };
-    
+
     checkCacheStatus();
 
     // Check for interrupted downloads from previous session
@@ -553,7 +491,7 @@ export function StoreProvider({ children }) {
     if (workerRef.current) {
       const callbackId = ++bgRemovalIdRef.current;
       bgRemovalCallbacksRef.current[callbackId] = callback;
-      
+
       workerRef.current.postMessage({
         type: 'REMOVE_BACKGROUND',
         payload: { imageData, callbackId }
@@ -568,16 +506,16 @@ export function StoreProvider({ children }) {
   // Refresh cache status
   const refreshCacheStatus = useCallback(async () => {
     dispatch({ type: 'SET_CACHE_LOADING', payload: true });
-    
+
     try {
       // Check OPFS cache
       const cachedIds = await modelDownloader.checkCachedModels(AVAILABLE_MODELS);
       const storageInfo = await opfsService.getStorageUsage();
-      
+
       // Check Browser Cache (Transformers.js)
       const browserCachedModels = await browserCacheService.listCachedModels();
       const browserCacheSize = await browserCacheService.getTotalCacheSize();
-      
+
       dispatch({
         type: 'UPDATE_CACHE_STATUS',
         payload: {
@@ -598,47 +536,47 @@ export function StoreProvider({ children }) {
   const deleteModelFromCache = useCallback(async (modelId) => {
     const model = AVAILABLE_MODELS.find(m => m.id === modelId);
     if (!model) return false;
-    
+
     const success = await modelDownloader.deleteModel(model.repo);
-    
+
     if (success) {
       // Refresh cache status after deletion
       await refreshCacheStatus();
     }
-    
+
     return success;
   }, [refreshCacheStatus]);
 
   // Clear all cached models (OPFS)
   const clearAllCache = useCallback(async () => {
     const success = await opfsService.clearAll();
-    
+
     if (success) {
       await refreshCacheStatus();
     }
-    
+
     return success;
   }, [refreshCacheStatus]);
 
   // Delete a model from browser cache (Transformers.js)
   const deleteBrowserCachedModel = useCallback(async (modelName) => {
     const success = await browserCacheService.deleteModel(modelName);
-    
+
     if (success) {
       await refreshCacheStatus();
     }
-    
+
     return success;
   }, [refreshCacheStatus]);
 
   // Clear all browser cached models (Transformers.js)
   const clearAllBrowserCache = useCallback(async () => {
     const success = await browserCacheService.clearAll();
-    
+
     if (success) {
       await refreshCacheStatus();
     }
-    
+
     return success;
   }, [refreshCacheStatus]);
 
@@ -707,7 +645,7 @@ export function StoreProvider({ children }) {
     }
   }, [refreshCacheStatus]);
 
-  const value = {
+  const value = useMemo(() => ({
     state,
     dispatch,
     actions: {
@@ -725,7 +663,22 @@ export function StoreProvider({ children }) {
       purgeModelDownload,
       purgeAllDownloads,
     }
-  };
+  }), [
+    state,
+    loadModel,
+    generate,
+    removeBackground,
+    resetGeneration,
+    refreshCacheStatus,
+    deleteModelFromCache,
+    clearAllCache,
+    deleteBrowserCachedModel,
+    clearAllBrowserCache,
+    resumeInterruptedDownload,
+    dismissInterruptedDownload,
+    purgeModelDownload,
+    purgeAllDownloads,
+  ]);
 
   return (
     <StoreContext.Provider value={value}>

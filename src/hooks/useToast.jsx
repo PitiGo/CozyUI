@@ -5,12 +5,18 @@ let toastId = 0;
 export function useToast() {
   const [toasts, setToasts] = useState([]);
 
+  const MAX_TOASTS = 5;
+
   const addToast = useCallback((type, message, duration = 4000) => {
     const id = ++toastId;
     const toast = { id, type, message, duration };
-    
-    setToasts(prev => [...prev, toast]);
-    
+
+    setToasts(prev => {
+      const next = [...prev, toast];
+      // Limit max visible toasts — auto-dismiss oldest
+      return next.length > MAX_TOASTS ? next.slice(-MAX_TOASTS) : next;
+    });
+
     return id;
   }, []);
 
