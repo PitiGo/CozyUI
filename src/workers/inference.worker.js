@@ -73,6 +73,8 @@ async function checkWebGPU() {
   }
 }
 
+
+
 // ========== Image Enhancement (Super-Resolution) ==========
 async function loadEnhancementModel(payload) {
   const { modelId, modelRepo } = payload;

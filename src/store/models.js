@@ -26,6 +26,7 @@ export const AVAILABLE_MODELS = [
         status: 'working',                 // ✅ Confirmed working
         note: 'DeepSeek Janus-Pro via Transformers.js + WebGPU'
     },
+
     // ═══════════════════════════════════════════════════════════════════
     // FUNCIONAL – Super-Resolution local (Transformers.js worker)
     // ═══════════════════════════════════════════════════════════════════
